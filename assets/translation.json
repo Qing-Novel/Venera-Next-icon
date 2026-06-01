@@ -439,7 +439,13 @@
     "Clear specific reader settings for this device": "清除该设备的特殊阅读设置",
     "Enable device specific settings": "启用此设备特定设置",
     "Ignore Certificate Errors": "忽略证书错误",
-    "Mouse scroll speed": "鼠标滚动速度"
+    "Mouse scroll speed": "鼠标滚动速度",
+    "Waterfall (Top to Bottom)": "瀑布流（从上到下）",
+    "Loading next chapter": "正在加载下一章",
+    "Failed to load next chapter": "加载下一章失败",
+    "Tap to retry": "点击重试",
+    "No more chapters": "没有更多章节",
+    "Continue to @chapter": "继续阅读 @chapter"
   },
   "zh_TW": {
     "Home": "首頁",
@@ -881,6 +887,12 @@
     "Clear specific reader settings for this device": "清除該裝置的特殊閱讀設定",
     "Enable device specific settings": "啟用此裝置特定設定",
     "Ignore Certificate Errors": "忽略證書錯誤",
-    "Mouse scroll speed": "滑鼠滾動速度"
+    "Mouse scroll speed": "滑鼠滾動速度",
+    "Waterfall (Top to Bottom)": "瀑布流（從上到下）",
+    "Loading next chapter": "正在載入下一章",
+    "Failed to load next chapter": "載入下一章失敗",
+    "Tap to retry": "點擊重試",
+    "No more chapters": "沒有更多章節",
+    "Continue to @chapter": "繼續閱讀 @chapter"
   }
 }

@@ -59,6 +59,7 @@ class _ReaderScaffoldState extends State<_ReaderScaffold> {
           onMove: (offset) {
             switch (readerMode) {
               case ReaderMode.continuousTopToBottom:
+              case ReaderMode.waterfallTopToBottom:
               case ReaderMode.galleryTopToBottom:
                 distance += offset.dx;
               case ReaderMode.continuousLeftToRight:

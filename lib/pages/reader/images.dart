@@ -138,7 +138,10 @@ class _ReaderImagesState extends State<_ReaderImages> {
           ),
         );
       } else {
-        return _ContinuousMode(key: Key(reader.mode.key));
+        return _ContinuousMode(
+          key: Key(reader.mode.key),
+          crossChapter: reader.mode.isWaterfall,
+        );
       }
     }
   }
@@ -382,7 +385,8 @@ class _GalleryModeState extends State<_GalleryMode>
         },
         onPageChanged: (i) {
           if (i == 0) {
-            if (reader.isFirstChapterOfGroup || !reader.toPrevChapter(toLastPage: true)) {
+            if (reader.isFirstChapterOfGroup ||
+                !reader.toPrevChapter(toLastPage: true)) {
               controller.jumpToPage(1);
             }
           } else if (i == totalPages + 1) {
@@ -655,10 +659,41 @@ const Set<PointerDeviceKind> _kTouchLikeDeviceTypes = <PointerDeviceKind>{
 const double _kChangeChapterOffset = 160;
 
 class _ContinuousMode extends StatefulWidget {
-  const _ContinuousMode({super.key});
+  const _ContinuousMode({super.key, this.crossChapter = false});
+
+  final bool crossChapter;
 
   @override
   State<_ContinuousMode> createState() => _ContinuousModeState();
+}
+
+class _ContinuousImageRef {
+  final int chapter;
+  final int page;
+  final String eid;
+  final String imageKey;
+  final bool isFirstInSegment;
+
+  const _ContinuousImageRef({
+    required this.chapter,
+    required this.page,
+    required this.eid,
+    required this.imageKey,
+    this.isFirstInSegment = false,
+  });
+}
+
+class _ContinuousChapterSegment {
+  final int chapter;
+  final String eid;
+  final List<String> images;
+  final Set<int> cached = {};
+
+  _ContinuousChapterSegment({
+    required this.chapter,
+    required this.eid,
+    required this.images,
+  });
 }
 
 class _ContinuousModeState extends State<_ContinuousMode>
@@ -678,6 +713,14 @@ class _ContinuousModeState extends State<_ContinuousMode>
   bool disableScroll = false;
 
   late List<bool> cached;
+
+  final _segments = <_ContinuousChapterSegment>[];
+
+  bool _isLoadingNextSegment = false;
+
+  bool _isLoadingPrevSegment = false;
+
+  String? _nextSegmentError;
 
   int get preCacheCount => appdata.settings["preloadImageCount"];
 
@@ -703,10 +746,173 @@ class _ContinuousModeState extends State<_ContinuousMode>
   bool isZoomedIn = false;
   bool isLongPressing = false;
 
+  bool get crossChapter => widget.crossChapter;
+
+  int get _flowImageCount => crossChapter
+      ? _segments.fold(0, (value, segment) => value + segment.images.length)
+      : reader.maxPage;
+
+  int get _flowItemCount => _flowImageCount + 2;
+
+  void _initSegments() {
+    if (!crossChapter || _segments.isNotEmpty || reader.images == null) return;
+    _segments.add(
+      _ContinuousChapterSegment(
+        chapter: reader.chapter,
+        eid: reader.eid,
+        images: reader.images!,
+      ),
+    );
+  }
+
+  _ContinuousChapterSegment? _segmentOfChapter(int chapter) {
+    return _segments.firstWhereOrNull((segment) => segment.chapter == chapter);
+  }
+
+  _ContinuousImageRef? _imageRefAt(int index) {
+    if (!crossChapter) {
+      if (index <= 0 || index > reader.images!.length) return null;
+      return _ContinuousImageRef(
+        chapter: reader.chapter,
+        page: index,
+        eid: reader.eid,
+        imageKey: reader.images![index - 1],
+        isFirstInSegment: index == 1,
+      );
+    }
+    if (index <= 0) return null;
+    var remaining = index;
+    for (var segment in _segments) {
+      if (remaining <= segment.images.length) {
+        return _ContinuousImageRef(
+          chapter: segment.chapter,
+          page: remaining,
+          eid: segment.eid,
+          imageKey: segment.images[remaining - 1],
+          isFirstInSegment: remaining == 1,
+        );
+      }
+      remaining -= segment.images.length;
+    }
+    return null;
+  }
+
+  Future<List<String>> _loadChapterImages(int chapter) async {
+    if (reader.type == ComicType.local ||
+        LocalManager().isDownloaded(
+          reader.cid,
+          reader.type,
+          chapter,
+          reader.widget.chapters,
+        )) {
+      return LocalManager().getImages(reader.cid, reader.type, chapter);
+    }
+    var chapterId = reader.widget.chapters?.ids.elementAtOrNull(chapter - 1);
+    var res = await reader.type.comicSource!.loadComicPages!(
+      reader.widget.cid,
+      chapterId,
+    );
+    if (res.error) throw res.errorMessage ?? 'Failed to load chapter';
+    return res.data;
+  }
+
+  Future<void> _ensureWaterfallImagesAfter(int current) async {
+    if (!crossChapter || _isLoadingNextSegment) return;
+    var threshold = math.max(preCacheCount, 1);
+    if (_flowImageCount - current >= threshold) return;
+    var nextChapter =
+        (_segments.isEmpty ? reader.chapter : _segments.last.chapter) + 1;
+    if (nextChapter > reader.maxChapter) return;
+    setState(() => _isLoadingNextSegment = true);
+    var loaded = false;
+    try {
+      var images = await _loadChapterImages(nextChapter);
+      if (!mounted) return;
+      setState(() {
+        _segments.add(
+          _ContinuousChapterSegment(
+            chapter: nextChapter,
+            eid:
+                reader.widget.chapters?.ids.elementAtOrNull(nextChapter - 1) ??
+                '0',
+            images: images,
+          ),
+        );
+        _nextSegmentError = null;
+      });
+      loaded = true;
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _nextSegmentError = e.toString());
+    } finally {
+      _isLoadingNextSegment = false;
+      if (mounted) setState(() {});
+      if (loaded && mounted && _flowImageCount - current < threshold) {
+        _ensureWaterfallImagesAfter(current);
+      }
+    }
+  }
+
+  Future<void> _ensureWaterfallImagesBefore(int current) async {
+    if (!crossChapter || _isLoadingPrevSegment) return;
+    var threshold = math.max(preCacheCount, 1);
+    if (current > threshold) return;
+    var prevChapter =
+        (_segments.isEmpty ? reader.chapter : _segments.first.chapter) - 1;
+    if (prevChapter < 1) return;
+    _isLoadingPrevSegment = true;
+    var loadedCount = 0;
+    try {
+      var images = await _loadChapterImages(prevChapter);
+      loadedCount = images.length;
+      if (!mounted) return;
+      setState(() {
+        _segments.insert(
+          0,
+          _ContinuousChapterSegment(
+            chapter: prevChapter,
+            eid:
+                reader.widget.chapters?.ids.elementAtOrNull(prevChapter - 1) ??
+                '0',
+            images: images,
+          ),
+        );
+      });
+    } catch (e) {
+      if (!mounted) return;
+      Log.error("Reader", "Failed to load previous chapter", e);
+    } finally {
+      _isLoadingPrevSegment = false;
+      if (mounted) {
+        setState(() {});
+      }
+      if (mounted && loadedCount > 0) {
+        SchedulerBinding.instance.addPostFrameCallback((_) {
+          if (mounted) {
+            itemScrollController.jumpTo(index: current + loadedCount);
+          }
+        });
+      }
+    }
+  }
+
+  void _setReaderLocation(_ContinuousImageRef imageRef) {
+    var segment = _segmentOfChapter(imageRef.chapter);
+    var chapterChanged = reader.chapter != imageRef.chapter;
+    if (segment != null && chapterChanged) {
+      reader.chapter = imageRef.chapter;
+      reader.images = segment.images;
+    }
+    if (chapterChanged || reader.page != imageRef.page) {
+      reader.setPage(imageRef.page);
+    }
+  }
+
   @override
   void initState() {
     reader = context.reader;
     reader._imageViewController = this;
+    _initSegments();
     itemPositionsListener.itemPositions.addListener(onPositionChanged);
     cached = List.filled(reader.maxPage + 2, false);
     Future.delayed(
@@ -727,12 +933,21 @@ class _ContinuousModeState extends State<_ContinuousMode>
       return;
     }
     var page = itemPositionsListener.itemPositions.value.first.index;
-    page = page.clamp(1, reader.maxPage);
-    if (page != reader.page) {
+    page = page.clamp(1, _flowImageCount);
+    var imageRef = _imageRefAt(page);
+    if (imageRef == null) return;
+    if (crossChapter) {
+      _setReaderLocation(imageRef);
+      context.readerScaffold.update();
+    } else if (page != reader.page) {
       reader.setPage(page);
       context.readerScaffold.update();
     }
     cacheImages(page);
+    if (crossChapter) {
+      _ensureWaterfallImagesBefore(page);
+      _ensureWaterfallImagesAfter(page);
+    }
   }
 
   double? _futurePosition;
@@ -795,11 +1010,111 @@ class _ContinuousModeState extends State<_ContinuousMode>
 
   void cacheImages(int current) {
     for (int i = current + 1; i <= current + preCacheCount; i++) {
-      if (i <= reader.maxPage && !cached[i]) {
+      if (crossChapter) {
+        var imageRef = _imageRefAt(i);
+        if (imageRef == null) continue;
+        var segment = _segmentOfChapter(imageRef.chapter);
+        if (segment != null && !segment.cached.contains(imageRef.page)) {
+          _preDownloadImageRef(imageRef, context);
+          segment.cached.add(imageRef.page);
+        }
+      } else if (i <= reader.maxPage && !cached[i]) {
         _preDownloadImage(i, context);
         cached[i] = true;
       }
     }
+  }
+
+  Widget _buildFlowEnd(BuildContext context) {
+    if (!crossChapter) return const SizedBox();
+    if (_isLoadingNextSegment) {
+      return SizedBox(
+        height: 96,
+        child: Center(
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const SizedBox(
+                width: 18,
+                height: 18,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+              const SizedBox(width: 12),
+              Text('Loading next chapter'.tl),
+            ],
+          ),
+        ),
+      );
+    }
+    if (_nextSegmentError != null) {
+      return InkWell(
+        onTap: () {
+          setState(() => _nextSegmentError = null);
+          _ensureWaterfallImagesAfter(_flowImageCount);
+        },
+        child: SizedBox(
+          height: 120,
+          child: Center(
+            child: Text(
+              '${'Failed to load next chapter'.tl}\n${'Tap to retry'.tl}',
+              textAlign: TextAlign.center,
+            ),
+          ),
+        ),
+      );
+    }
+    var lastChapter = _segments.isNotEmpty
+        ? _segments.last.chapter
+        : reader.chapter;
+    if (lastChapter >= reader.maxChapter) {
+      return SizedBox(
+        height: 96,
+        child: Center(child: Text('No more chapters'.tl)),
+      );
+    }
+    return const SizedBox(height: 48);
+  }
+
+  String _chapterTitle(int chapter) {
+    return reader.widget.chapters?.titles.elementAtOrNull(chapter - 1) ??
+        '${'Chapter'.tl} $chapter';
+  }
+
+  Widget _buildChapterDivider(
+    BuildContext context,
+    _ContinuousImageRef imageRef,
+  ) {
+    if (!crossChapter || !imageRef.isFirstInSegment) {
+      return const SizedBox();
+    }
+    var isInitialChapter = imageRef.chapter == _segments.firstOrNull?.chapter;
+    if (isInitialChapter) return const SizedBox();
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
+      child: Center(
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            color: context.colorScheme.surfaceContainerHighest.toOpacity(0.72),
+            borderRadius: BorderRadius.circular(999),
+            border: Border.all(
+              color: context.colorScheme.outlineVariant.toOpacity(0.7),
+            ),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+            child: Text(
+              'Continue to @chapter'.tlParams({
+                'chapter': _chapterTitle(imageRef.chapter),
+              }),
+              style: TextStyle(
+                color: context.colorScheme.onSurfaceVariant,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
   }
 
   void onScroll() {
@@ -846,9 +1161,9 @@ class _ContinuousModeState extends State<_ContinuousMode>
         _scrollController = scrollController;
         _scrollController!.addListener(onScroll);
       },
-      itemCount: reader.maxPage + 2,
+      itemCount: _flowItemCount,
       addSemanticIndexes: false,
-      scrollDirection: reader.mode == ReaderMode.continuousTopToBottom
+      scrollDirection: reader.mode.isTopToBottom
           ? Axis.vertical
           : Axis.horizontal,
       reverse: reader.mode == ReaderMode.continuousRightToLeft,
@@ -858,7 +1173,14 @@ class _ContinuousModeState extends State<_ContinuousMode>
           ? const ClampingScrollPhysics()
           : const BouncingScrollPhysics(),
       itemBuilder: (context, index) {
-        if (index == 0 || index == reader.maxPage + 1) {
+        if (index == 0) {
+          return const SizedBox();
+        }
+        if (index == _flowImageCount + 1) {
+          return _buildFlowEnd(context);
+        }
+        var imageRef = _imageRefAt(index);
+        if (imageRef == null) {
           return const SizedBox();
         }
         double? width, height;
@@ -869,19 +1191,29 @@ class _ContinuousModeState extends State<_ContinuousMode>
           width = double.infinity;
         }
 
-        ImageProvider image = _createImageProvider(index, context);
+        ImageProvider image = _createImageProviderFromRef(imageRef, context);
+
+        var comicImage = ComicImage(
+          filterQuality: FilterQuality.medium,
+          image: image,
+          width: width,
+          height: height,
+          fit: BoxFit.contain,
+          onInit: (state) => imageStates.add(state),
+          onDispose: (state) => imageStates.remove(state),
+        );
 
         return ColoredBox(
           color: context.colorScheme.surface,
-          child: ComicImage(
-            filterQuality: FilterQuality.medium,
-            image: image,
-            width: width,
-            height: height,
-            fit: BoxFit.contain,
-            onInit: (state) => imageStates.add(state),
-            onDispose: (state) => imageStates.remove(state),
-          ),
+          child: reader.mode.isTopToBottom
+              ? Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    _buildChapterDivider(context, imageRef),
+                    comicImage,
+                  ],
+                )
+              : comicImage,
         );
       },
       scrollBehavior: const MaterialScrollBehavior().copyWith(
@@ -953,7 +1285,7 @@ class _ContinuousModeState extends State<_ContinuousMode>
             sp.pixels >= sp.maxScrollExtent) {
           offset = Offset(value.dx, value.dy);
         } else {
-          if (reader.mode == ReaderMode.continuousTopToBottom) {
+          if (reader.mode.isTopToBottom) {
             offset = Offset(value.dx, 0);
           } else {
             offset = Offset(0, value.dy);
@@ -985,7 +1317,8 @@ class _ContinuousModeState extends State<_ContinuousMode>
           if (!scrollController.hasClients) return false;
           if (scrollController.position.pixels <=
                   scrollController.position.minScrollExtent &&
-              !reader.isFirstChapterOfGroup) {
+              !reader.isFirstChapterOfGroup &&
+              !crossChapter) {
             if (!prepareToPrevChapter) {
               jumpToPrevChapter = false;
               jumpToNextChapter = false;
@@ -996,7 +1329,8 @@ class _ContinuousModeState extends State<_ContinuousMode>
             }
           } else if (scrollController.position.pixels >=
                   scrollController.position.maxScrollExtent &&
-              !reader.isLastChapterOfGroup) {
+              !reader.isLastChapterOfGroup &&
+              !crossChapter) {
             if (!prepareToNextChapter) {
               jumpToPrevChapter = false;
               jumpToNextChapter = false;
@@ -1026,7 +1360,7 @@ class _ContinuousModeState extends State<_ContinuousMode>
     var height = reader.size.height;
     if (appdata.settings['limitImageWidth'] &&
         width / height > 0.7 &&
-        reader.mode == ReaderMode.continuousTopToBottom) {
+        reader.mode.isTopToBottom) {
       width = height * 0.7;
     }
 
@@ -1152,10 +1486,10 @@ class _ContinuousModeState extends State<_ContinuousMode>
     } else if (reader.mode == ReaderMode.continuousRightToLeft &&
         event.logicalKey == LogicalKeyboardKey.arrowLeft) {
       forward = true;
-    } else if (reader.mode == ReaderMode.continuousTopToBottom &&
+    } else if (reader.mode.isTopToBottom &&
         event.logicalKey == LogicalKeyboardKey.arrowDown) {
       forward = true;
-    } else if (reader.mode == ReaderMode.continuousTopToBottom &&
+    } else if (reader.mode.isTopToBottom &&
         event.logicalKey == LogicalKeyboardKey.arrowUp) {
       forward = false;
     } else if (reader.mode == ReaderMode.continuousLeftToRight &&
@@ -1225,7 +1559,24 @@ ImageProvider _createImageProviderFromKey(
     reader.cid,
     reader.eid,
     reader.page,
-    enableResize: reader.mode.isContinuous, // For continuous mode, we need to resize the image to improve performance
+    enableResize: reader
+        .mode
+        .isContinuous, // For continuous mode, we need to resize the image to improve performance
+  );
+}
+
+ImageProvider _createImageProviderFromRef(
+  _ContinuousImageRef imageRef,
+  BuildContext context,
+) {
+  var reader = context.reader;
+  return ReaderImageProvider(
+    imageRef.imageKey,
+    reader.type.comicSource?.key,
+    reader.cid,
+    imageRef.eid,
+    imageRef.page,
+    enableResize: reader.mode.isContinuous,
   );
 }
 
@@ -1260,6 +1611,20 @@ void _preDownloadImage(int page, BuildContext context) {
   var eid = reader.eid;
   var sourceKey = reader.type.comicSource?.key;
   ImageDownloader.loadComicImage(imageKey, sourceKey, cid, eid);
+}
+
+void _preDownloadImageRef(_ContinuousImageRef imageRef, BuildContext context) {
+  if (imageRef.imageKey.startsWith("file://")) {
+    return;
+  }
+  var reader = context.reader;
+  var sourceKey = reader.type.comicSource?.key;
+  ImageDownloader.loadComicImage(
+    imageRef.imageKey,
+    sourceKey,
+    reader.cid,
+    imageRef.eid,
+  );
 }
 
 class _SwipeChangeChapterProgress extends StatefulWidget {

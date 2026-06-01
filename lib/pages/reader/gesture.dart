@@ -254,6 +254,7 @@ class _ReaderGestureDetectorState extends AutomaticGlobalState<_ReaderGestureDet
             }
           case ReaderMode.galleryTopToBottom:
           case ReaderMode.continuousTopToBottom:
+          case ReaderMode.waterfallTopToBottom:
             if (isTop) {
               prev();
             } else if (isBottom) {

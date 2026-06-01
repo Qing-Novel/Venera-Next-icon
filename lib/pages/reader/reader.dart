@@ -298,7 +298,9 @@ class _ReaderState extends State<Reader>
             builder: (context) {
               return _ReaderScaffold(
                 child: _ReaderGestureDetector(
-                  child: _ReaderImages(key: Key(chapter.toString())),
+                  child: _ReaderImages(
+                    key: Key(mode.isWaterfall ? mode.key : chapter.toString()),
+                  ),
                 ),
               );
             },
@@ -415,7 +417,7 @@ abstract mixin class _ImagePerPageHandler {
   late int _lastImagesPerPage;
 
   late bool _lastOrientation;
-  
+
   /// Track if we were on the chapter comments page before orientation change
   bool _wasOnCommentsPage = false;
 
@@ -430,13 +432,13 @@ abstract mixin class _ImagePerPageHandler {
   String get cid;
 
   ComicType get type;
-  
+
   /// Whether the current page is the chapter comments page
   bool get isOnChapterCommentsPage;
-  
+
   /// Get the max page (excluding comments page)
   int get maxPage;
-  
+
   /// Get images list for calculating maxPage
   List<String>? get images;
 
@@ -478,7 +480,7 @@ abstract mixin class _ImagePerPageHandler {
           1;
     }
   }
-  
+
   /// Calculate maxPage with a specific imagesPerPage value
   int _calcMaxPage(int imagesPerPageValue) {
     if (images == null) return 1;
@@ -498,7 +500,7 @@ abstract mixin class _ImagePerPageHandler {
       // if we were on the comments page before the orientation change
       int oldMaxPage = _calcMaxPage(_lastImagesPerPage);
       _wasOnCommentsPage = page > oldMaxPage;
-      
+
       _adjustPageForImagesPerPageChange(
         _lastImagesPerPage,
         currentImagesPerPage,
@@ -537,7 +539,7 @@ abstract mixin class _ImagePerPageHandler {
 
     // Clamp to valid range (1 to maxPage)
     newPage = newPage.clamp(1, maxPage);
-    
+
     // If we were on the comments page, stay on the comments page
     if (_wasOnCommentsPage) {
       page = maxPage + 1;
@@ -770,6 +772,7 @@ enum ReaderMode {
   galleryLeftToRight('galleryLeftToRight'),
   galleryRightToLeft('galleryRightToLeft'),
   galleryTopToBottom('galleryTopToBottom'),
+  waterfallTopToBottom('waterfallTopToBottom'),
   continuousTopToBottom('continuousTopToBottom'),
   continuousLeftToRight('continuousLeftToRight'),
   continuousRightToLeft('continuousRightToLeft');
@@ -778,7 +781,14 @@ enum ReaderMode {
 
   bool get isGallery => key.startsWith('gallery');
 
-  bool get isContinuous => key.startsWith('continuous');
+  bool get isWaterfall => key.startsWith('waterfall');
+
+  bool get isContinuous => key.startsWith('continuous') || isWaterfall;
+
+  bool get isTopToBottom =>
+      this == galleryTopToBottom ||
+      this == continuousTopToBottom ||
+      this == waterfallTopToBottom;
 
   const ReaderMode(this.key);
 
