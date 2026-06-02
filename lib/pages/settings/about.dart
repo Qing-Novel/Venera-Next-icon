@@ -75,17 +75,50 @@ class _AboutSettingsState extends State<AboutSettings> {
 }
 
 Future<bool> checkUpdate() async {
+  var remoteVersion =
+      await _fetchUpdateVersion(_fetchPubspecVersion, "Update Pubspec") ??
+      await _fetchUpdateVersion(_fetchLatestReleaseVersion, "Latest Release");
+  if (remoteVersion == null) return false;
+  return _compareVersion(remoteVersion, App.version);
+}
+
+Future<String?> _fetchUpdateVersion(
+  Future<String?> Function() fetcher,
+  String source,
+) async {
+  try {
+    return await fetcher();
+  } catch (e, s) {
+    Log.error("Check Update", "$source: $e", s);
+    return null;
+  }
+}
+
+Future<String?> _fetchLatestReleaseVersion() async {
   var res = await AppDio().get(
-    "https://raw.githubusercontent.com/CyrilPeng/venera-next/main/pubspec.yaml",
+    "https://api.github.com/repos/CyrilPeng/venera-next/releases/latest",
+  );
+  if (res.statusCode == 200) {
+    var data = res.data is String ? jsonDecode(res.data) : res.data;
+    var tag = data["tag_name"]?.toString();
+    if (tag != null) {
+      return tag.startsWith('v') ? tag.substring(1) : tag;
+    }
+  }
+  return null;
+}
+
+Future<String?> _fetchPubspecVersion() async {
+  var res = await AppDio().get(
+    "https://cdn.jsdelivr.net/gh/CyrilPeng/venera-next@main/pubspec.yaml",
   );
   if (res.statusCode == 200) {
     var data = loadYaml(res.data);
     if (data["version"] != null) {
-      var remoteVersion = data["version"].toString().split('+').first;
-      return _compareVersion(remoteVersion, App.version);
+      return data["version"].toString().split('+').first;
     }
   }
-  return false;
+  return null;
 }
 
 Future<void> checkUpdateUi([
@@ -127,6 +160,10 @@ Future<void> checkUpdateUi([
     }
   } catch (e, s) {
     Log.error("Check Update", e.toString(), s);
+    if (showMessageIfNoUpdate) {
+      if (!App.rootContext.mounted) return;
+      App.rootContext.showMessage(message: "Failed to check for updates".tl);
+    }
   }
 }
 
