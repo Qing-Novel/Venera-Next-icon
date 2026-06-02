@@ -20,7 +20,7 @@ jobs:
           flutter-version-file: pubspec.yaml
           architecture: x64
       - run: sudo xcode-select --switch /Applications/Xcode_16.4.app
-      - run: flutter pub get
+      - run: flutter pub get --enforce-lockfile
 
       - name: Check rust-toolchain.toml
         run: rustup show
@@ -60,7 +60,7 @@ jobs:
           flutter-version-file: pubspec.yaml
           architecture: x64
       - run: sudo xcode-select --switch /Applications/Xcode_16.4.app
-      - run: flutter pub get
+      - run: flutter pub get --enforce-lockfile
       - run: flutter build ios --release --no-codesign
       - run: |
           mkdir -p /Users/runner/work/venera/venera/build/ios/iphoneos/Payload
@@ -99,7 +99,7 @@ jobs:
           java-version: '17'
       - name: Check rust-toolchain.toml
         run: rustup show
-      - run: flutter pub get
+      - run: flutter pub get --enforce-lockfile
       - run: flutter build apk --release
       - uses: actions/upload-artifact@v4
         with:
@@ -122,7 +122,7 @@ jobs:
           architecture: x64
       - name: build
         run: |
-          flutter pub get
+          flutter pub get --enforce-lockfile
           python windows/build.py
       - uses: actions/upload-artifact@v4
         with:
@@ -165,7 +165,7 @@ jobs:
           channel: 'master'
           flutter-version-file: pubspec.yaml
       - run: |
-          flutter pub get
+          flutter pub get --enforce-lockfile
           sudo apt-get update -y
           sudo apt-get install -y ninja-build libgtk-3-dev webkit2gtk-4.1
           dart pub global activate -s git https://github.com/venera-app/flutter_to_debian.git
@@ -184,23 +184,8 @@ jobs:
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
     steps:
       - uses: actions/checkout@v4
-      - name: Extract release notes from CHANGELOG
-        run: |
-          python3 - <<'PY'
-          import os
-          import re
-          from pathlib import Path
-
-          tag = os.environ["GITHUB_REF_NAME"]
-          changelog = Path("CHANGELOG.md")
-          text = changelog.read_text(encoding="utf-8")
-          pattern = rf"^##\s+{re.escape(tag)}\s*$\n(?P<body>.*?)(?=^##\s+|\Z)"
-          match = re.search(pattern, text, re.MULTILINE | re.DOTALL)
-          body = match.group("body").strip() if match else ""
-          if not body:
-              body = f"See CHANGELOG.md for {tag}."
-          Path("release_notes.md").write_text(body + "\n", encoding="utf-8")
-          PY
+      - name: Validate release metadata
+        run: python3 .github/scripts/validate_release.py --write-notes release_notes.md
       - uses: actions/download-artifact@v4
         with:
           name: macos_build
