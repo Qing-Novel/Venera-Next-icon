@@ -2,8 +2,10 @@ import 'dart:io';
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:venera/foundation/history.dart';
+import 'package:yaml/yaml.dart';
 
 import 'appdata.dart';
 import 'favorites.dart';
@@ -13,7 +15,7 @@ export "widget_utils.dart";
 export "context.dart";
 
 class _App {
-  final version = "1.7.0";
+  String version = "0.0.0";
 
   bool get isAndroid => Platform.isAndroid;
 
@@ -80,12 +82,19 @@ class _App {
   }
 
   Future<void> init() async {
+    await _initVersion();
     cachePath = (await getApplicationCacheDirectory()).path;
     dataPath = (await getApplicationSupportDirectory()).path;
     if (isAndroid) {
       externalStoragePath = (await getExternalStorageDirectory())!.path;
     }
     isInitialized = true;
+  }
+
+  Future<void> _initVersion() async {
+    final pubspec = await rootBundle.loadString("pubspec.yaml");
+    final data = loadYaml(pubspec);
+    version = data["version"].toString().split('+').first;
   }
 
   Future<void> initComponents() async {

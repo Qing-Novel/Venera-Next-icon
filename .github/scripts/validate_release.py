@@ -36,6 +36,9 @@ def validate_pubspec_version(tag: str) -> None:
     if pubspec_version != expected:
         fail(f"pubspec.yaml version {pubspec_version} does not match tag {tag}")
 
+    if not re.search(r"^\s+-\s+pubspec\.yaml\s*$", text, re.MULTILINE):
+        fail("pubspec.yaml must be listed in flutter assets so App.version can read it")
+
 
 def validate_flutter_rust_bridge_lock() -> None:
     text = read_text("pubspec.lock")
