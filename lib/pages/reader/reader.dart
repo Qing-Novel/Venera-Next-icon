@@ -275,6 +275,7 @@ class _ReaderState extends State<Reader>
       fullscreen();
     }
     autoPageTurningTimer?.cancel();
+    _flushPendingHistoryUpdate();
     focusNode.dispose();
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
     stopVolumeEvent();
@@ -329,6 +330,18 @@ class _ReaderState extends State<Reader>
   /// Prevent multiple history updates in a short time.
   /// `HistoryManager().addHistoryAsync` is a high-cost operation because it creates a new isolate.
   Timer? _updateHistoryTimer;
+
+  void _flushPendingHistoryUpdate() {
+    if (_updateHistoryTimer == null) {
+      return;
+    }
+    _updateHistoryTimer!.cancel();
+    _updateHistoryTimer = null;
+    final item = history;
+    if (item != null) {
+      HistoryManager().addHistory(item);
+    }
+  }
 
   void updateHistory() {
     if (history != null) {
