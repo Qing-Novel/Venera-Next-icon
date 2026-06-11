@@ -112,4 +112,33 @@ void main() {
     var item4 = await channel.pop();
     expect(item4, null);
   });
+
+  test("pending pushes are released one slot at a time", () async {
+    var channel = Channel<int>(1);
+
+    await channel.push(1);
+    var push2Done = false;
+    var push3Done = false;
+    var push2 = channel.push(2).then((_) => push2Done = true);
+    var push3 = channel.push(3).then((_) => push3Done = true);
+    await pumpEventQueue();
+
+    expect(channel.currentSize, 1);
+    expect(push2Done, isFalse);
+    expect(push3Done, isFalse);
+
+    expect(await channel.pop(), 1);
+    await pumpEventQueue();
+
+    expect(channel.currentSize, 1);
+    expect(push2Done, isTrue);
+    expect(push3Done, isFalse);
+
+    expect(await channel.pop(), 2);
+    await Future.wait([push2, push3]);
+
+    expect(channel.currentSize, 1);
+    expect(push3Done, isTrue);
+    expect(await channel.pop(), 3);
+  });
 }
