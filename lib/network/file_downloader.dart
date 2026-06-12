@@ -192,11 +192,12 @@ class FileDownloader {
   }
 
   Future<void> _scheduleDownload() async {
-    var tasks = <Future>[];
+    final tasks = <Future<void>>[];
     while (true) {
       if (_canceled) return;
       if (tasks.length >= maxConcurrent) {
         await Future.any(tasks);
+        continue;
       }
       final block = _blocks.firstWhereOrNull(
         (element) =>
@@ -207,14 +208,11 @@ class FileDownloader {
         break;
       }
       block.downloading = true;
-      var task = _fetchBlock(block);
-      task.then(
-        (value) => tasks.remove(task),
-        onError: (e) {
-          if (_canceled) return;
-          throw e;
-        },
-      );
+      late final Future<void> task;
+      task = _fetchBlock(block).whenComplete(() {
+        block.downloading = false;
+        tasks.remove(task);
+      });
       tasks.add(task);
     }
     await Future.wait(tasks);
@@ -255,8 +253,6 @@ class FileDownloader {
     if (buffer.isNotEmpty) {
       await _writeBlockBuffer(block, buffer);
     }
-
-    block.downloading = false;
   }
 
   Future<void> _writeBlockBuffer(_DownloadBlock block, List<int> buffer) {
