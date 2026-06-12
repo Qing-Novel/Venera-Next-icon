@@ -72,4 +72,51 @@ void main() {
     },
     skip: _sqliteAvailable() ? false : 'sqlite3 native library is unavailable',
   );
+
+  test(
+    'addHistoryAsync queues concurrent writes and updates cache',
+    () async {
+      final dataDir = Directory.systemTemp.createTempSync(
+        'venera-history-data-',
+      );
+      final cacheDir = Directory.systemTemp.createTempSync(
+        'venera-history-cache-',
+      );
+      addTearDown(() {
+        try {
+          HistoryManager().close();
+        } catch (_) {
+          // ignore cleanup failures in partially initialized tests
+        }
+        HistoryManager.cache = null;
+        if (dataDir.existsSync()) {
+          dataDir.deleteSync(recursive: true);
+        }
+        if (cacheDir.existsSync()) {
+          cacheDir.deleteSync(recursive: true);
+        }
+      });
+
+      App.dataPath = dataDir.path;
+      App.cachePath = cacheDir.path;
+      HistoryManager.cache = null;
+
+      final manager = HistoryManager();
+      await manager.init();
+
+      final futures = List.generate(
+        5,
+        (index) => manager.addHistoryAsync(_history('comic-$index')),
+      );
+      await Future.wait(futures);
+
+      expect(manager.count(), 5);
+      for (var i = 0; i < 5; i++) {
+        final saved = manager.find('comic-$i', ComicType.local);
+        expect(saved, isNotNull);
+        expect(saved!.title, 'Title comic-$i');
+      }
+    },
+    skip: _sqliteAvailable() ? false : 'sqlite3 native library is unavailable',
+  );
 }

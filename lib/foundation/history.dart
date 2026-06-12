@@ -261,20 +261,31 @@ class HistoryManager with ChangeNotifier {
     });
   }
 
-  bool _haveAsyncTask = false;
+  Future<void> _asyncHistoryQueue = Future.value();
 
   /// Create a isolate to add history to prevent blocking the UI thread.
-  Future<void> addHistoryAsync(History newItem) async {
-    while (_haveAsyncTask) {
-      await Future.delayed(Duration(milliseconds: 20));
-    }
+  Future<void> addHistoryAsync(History newItem) {
+    return _enqueueAsyncHistoryWrite(newItem);
+  }
 
-    _haveAsyncTask = true;
-    try {
-      await _addHistoryAsync(_dbPath, newItem);
-    } finally {
-      _haveAsyncTask = false;
-    }
+  Future<void> _enqueueAsyncHistoryWrite(History newItem) {
+    final next = _asyncHistoryQueue.then(
+      (_) => _writeHistoryAsync(newItem),
+      onError: (_) => _writeHistoryAsync(newItem),
+    );
+    _asyncHistoryQueue = next.catchError((Object error, StackTrace stackTrace) {
+      Log.error("History", error, stackTrace);
+    });
+    return next;
+  }
+
+  Future<void> _writeHistoryAsync(History newItem) async {
+    await _addHistoryAsync(_dbPath, newItem);
+    _cacheHistory(newItem);
+    notifyListeners();
+  }
+
+  void _cacheHistory(History newItem) {
     if (_cachedHistoryIds == null) {
       updateCache();
     } else {
@@ -284,7 +295,6 @@ class HistoryManager with ChangeNotifier {
     if (cachedHistories.length > 10) {
       cachedHistories.remove(cachedHistories.keys.first);
     }
-    notifyListeners();
   }
 
   /// add history. if exists, update time.
@@ -304,15 +314,7 @@ class HistoryManager with ChangeNotifier {
       newItem.maxPage,
       newItem.group,
     ]);
-    if (_cachedHistoryIds == null) {
-      updateCache();
-    } else {
-      _cachedHistoryIds![newItem.id] = true;
-    }
-    cachedHistories[newItem.id] = newItem;
-    if (cachedHistories.length > 10) {
-      cachedHistories.remove(cachedHistories.keys.first);
-    }
+    _cacheHistory(newItem);
     notifyListeners();
   }
 
