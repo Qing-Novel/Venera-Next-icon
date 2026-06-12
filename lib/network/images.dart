@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:typed_data';
 
+import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:flutter_qjs/flutter_qjs.dart';
 import 'package:venera/foundation/cache_manager.dart';
 import 'package:venera/foundation/comic_source/comic_source.dart';
@@ -10,6 +11,15 @@ import 'package:venera/utils/image.dart';
 import 'app_dio.dart';
 
 abstract class ImageDownloader {
+  @visibleForTesting
+  static Stream<ImageDownloadProgress> Function(
+    String imageKey,
+    String? sourceKey,
+    String cid,
+    String eid,
+  )?
+  debugLoadComicImageUnwrapped;
+
   static Stream<ImageDownloadProgress> loadThumbnail(
       String url, String? sourceKey,
       [String? cid]) async* {
@@ -117,7 +127,15 @@ abstract class ImageDownloader {
   }
 
   static Stream<ImageDownloadProgress> loadComicImageUnwrapped(
-      String imageKey, String? sourceKey, String cid, String eid) {
+    String imageKey,
+    String? sourceKey,
+    String cid,
+    String eid,
+  ) {
+    final debugLoader = debugLoadComicImageUnwrapped;
+    if (debugLoader != null) {
+      return debugLoader(imageKey, sourceKey, cid, eid);
+    }
     return _loadComicImage(imageKey, sourceKey, cid, eid);
   }
 

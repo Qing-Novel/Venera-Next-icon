@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:isolate';
 
+import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:flutter/widgets.dart' show ChangeNotifier;
 import 'package:flutter_saf/flutter_saf.dart';
 import 'package:venera/foundation/app.dart';
@@ -192,6 +193,11 @@ class ImagesDownloadTask extends DownloadTask with _TransferSpeedMixin {
   int get _maxConcurrentTasks =>
       (appdata.settings["downloadThreads"] as num).toInt();
 
+  Future<void>? _resumeFuture;
+
+  @visibleForTesting
+  Future<void>? get debugResumeFuture => _resumeFuture;
+
   void _scheduleTasks() {
     var images = _images![_images!.keys.elementAt(_chapter)]!;
     var downloading = 0;
@@ -239,8 +245,12 @@ class ImagesDownloadTask extends DownloadTask with _TransferSpeedMixin {
   }
 
   @override
-  void resume() async {
+  void resume() {
     if (_isRunning) return;
+    _resumeFuture = _resume();
+  }
+
+  Future<void> _resume() async {
     _isError = false;
     _message = "Resuming...";
     _isRunning = true;
@@ -557,8 +567,29 @@ class _ImageDownloadWrapper {
 
   bool isCancelled = false;
 
+  StreamIterator<ImageDownloadProgress>? _imageIterator;
+
+  Future<void>? _activeWrite;
+
   void cancel() {
+    if (isCancelled) {
+      return;
+    }
     isCancelled = true;
+    final waitFutures = <Future<void>>[];
+    final imageIterator = _imageIterator;
+    if (imageIterator != null) {
+      waitFutures.add(imageIterator.cancel().then<void>((_) {}));
+    }
+    final activeWrite = _activeWrite;
+    if (activeWrite != null) {
+      waitFutures.add(activeWrite.catchError((_) {}));
+    }
+    if (waitFutures.isEmpty) {
+      _completeWaiters();
+    } else {
+      unawaited(Future.wait(waitFutures).whenComplete(_completeWaiters));
+    }
   }
 
   var completers = <Completer<_ImageDownloadWrapper>>[];
@@ -567,9 +598,18 @@ class _ImageDownloadWrapper {
 
   void start() async {
     int lastBytes = 0;
+    final imageIterator = StreamIterator(
+      ImageDownloader.loadComicImageUnwrapped(
+        image,
+        task.source.key,
+        task.comicId,
+        chapter,
+      ),
+    );
+    _imageIterator = imageIterator;
     try {
-      await for (var p in ImageDownloader.loadComicImageUnwrapped(
-          image, task.source.key, task.comicId, chapter)) {
+      while (await imageIterator.moveNext()) {
+        final p = imageIterator.current;
         if (isCancelled) {
           return;
         }
@@ -578,13 +618,28 @@ class _ImageDownloadWrapper {
         if (p.imageBytes != null) {
           var fileType = detectFileType(p.imageBytes!);
           var file = saveTo.joinFile("$index${fileType.ext}");
-          await file.writeAsBytes(p.imageBytes!);
-          isComplete = true;
-          for (var c in completers) {
-            c.complete(this);
+          final activeWrite = file.writeAsBytes(p.imageBytes!).then<void>(
+            (_) {},
+          );
+          _activeWrite = activeWrite;
+          try {
+            await activeWrite;
+          } finally {
+            if (identical(_activeWrite, activeWrite)) {
+              _activeWrite = null;
+            }
           }
-          completers.clear();
+          if (isCancelled) {
+            return;
+          }
+          isComplete = true;
+          _completeWaiters();
+          await imageIterator.cancel();
+          return;
         }
+      }
+      if (!isComplete && !isCancelled) {
+        throw "Failed to download image";
       }
     } catch (e, s) {
       if (isCancelled) {
@@ -597,21 +652,33 @@ class _ImageDownloadWrapper {
         return;
       }
       error = e.toString();
-      for (var c in completers) {
-        if (!c.isCompleted) {
-          c.complete(this);
-        }
+      _completeWaiters();
+    } finally {
+      if (identical(_imageIterator, imageIterator)) {
+        _imageIterator = null;
+      }
+      if (isCancelled) {
+        _completeWaiters();
       }
     }
   }
 
   Future<_ImageDownloadWrapper> wait() {
-    if (isComplete) {
+    if (isComplete || isCancelled || error != null) {
       return Future.value(this);
     }
     var c = Completer<_ImageDownloadWrapper>();
     completers.add(c);
     return c.future;
+  }
+
+  void _completeWaiters() {
+    for (var c in completers) {
+      if (!c.isCompleted) {
+        c.complete(this);
+      }
+    }
+    completers.clear();
   }
 }
 
