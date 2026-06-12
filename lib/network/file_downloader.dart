@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:dio/io.dart';
 import 'package:venera/network/app_dio.dart';
@@ -11,7 +12,16 @@ class FileDownloader {
   final String savePath;
   final int maxConcurrent;
 
-  FileDownloader(this.url, this.savePath, {this.maxConcurrent = 4});
+  FileDownloader(
+    this.url,
+    this.savePath, {
+    this.maxConcurrent = 4,
+    int? chunkSize,
+  }) {
+    if (chunkSize != null) {
+      _kChunkSize = chunkSize;
+    }
+  }
 
   int _currentBytes = 0;
 
@@ -23,7 +33,7 @@ class FileDownloader {
 
   RandomAccessFile? _file;
 
-  bool _isWriting = false;
+  Future<void> _writeQueue = Future.value();
 
   int _kChunkSize = 16 * 1024 * 1024;
 
@@ -73,8 +83,10 @@ class FileDownloader {
 
     if (File("$savePath.download").existsSync()) {
       await _readStatus();
-      _currentBytes = _blocks.fold<int>(0,
-          (previousValue, element) => previousValue + element.downloadedBytes);
+      _currentBytes = _blocks.fold<int>(
+        0,
+        (previousValue, element) => previousValue + element.downloadedBytes,
+      );
     } else {
       if (_fileSize > 1024 * 1024 * 1024) {
         _kChunkSize = 64 * 1024 * 1024;
@@ -135,8 +147,13 @@ class FileDownloader {
           timer.cancel();
           return;
         }
-        resultStream.add(DownloadingStatus(
-            _currentBytes, _fileSize, _currentBytes - _lastBytes));
+        resultStream.add(
+          DownloadingStatus(
+            _currentBytes,
+            _fileSize,
+            _currentBytes - _lastBytes,
+          ),
+        );
         _lastBytes = _currentBytes;
       });
 
@@ -146,21 +163,27 @@ class FileDownloader {
         resultStream.close();
         return;
       }
+      await _writeQueue;
       await _file!.close();
       _file = null;
       await File("$savePath.download").delete();
 
       // check if download is finished
       if (_currentBytes < _fileSize) {
-        resultStream
-            .addError(Exception("Download failed: Expected $_fileSize bytes, "
-                "but only $_currentBytes bytes downloaded."));
+        resultStream.addError(
+          Exception(
+            "Download failed: Expected $_fileSize bytes, "
+            "but only $_currentBytes bytes downloaded.",
+          ),
+        );
         resultStream.close();
       }
 
       resultStream.add(DownloadingStatus(_currentBytes, _fileSize, 0, true));
       resultStream.close();
     } catch (e, s) {
+      _canceled = true;
+      await _writeQueue.catchError((_) {});
       await _file?.close();
       _file = null;
       resultStream.addError(e, s);
@@ -175,18 +198,23 @@ class FileDownloader {
       if (tasks.length >= maxConcurrent) {
         await Future.any(tasks);
       }
-      final block = _blocks.firstWhereOrNull((element) =>
-          !element.downloading &&
-          element.end - element.start > element.downloadedBytes);
+      final block = _blocks.firstWhereOrNull(
+        (element) =>
+            !element.downloading &&
+            element.end - element.start > element.downloadedBytes,
+      );
       if (block == null) {
         break;
       }
       block.downloading = true;
       var task = _fetchBlock(block);
-      task.then((value) => tasks.remove(task), onError: (e) {
-        if(_canceled) return;
-        throw e;
-      });
+      task.then(
+        (value) => tasks.remove(task),
+        onError: (e) {
+          if (_canceled) return;
+          throw e;
+        },
+      );
       tasks.add(task);
     }
     await Future.wait(tasks);
@@ -220,36 +248,44 @@ class FileDownloader {
       if (_canceled) return;
       buffer.addAll(data);
       if (buffer.length > 16 * 1024) {
-        if (_isWriting) continue;
-        _currentBytes += buffer.length;
-        _isWriting = true;
-        await _file!.setPosition(start + block.downloadedBytes);
-        await _file!.writeFrom(buffer);
-        block.downloadedBytes += buffer.length;
-        buffer.clear();
-        await _writeStatus();
-        _isWriting = false;
+        await _writeBlockBuffer(block, buffer);
       }
     }
 
     if (buffer.isNotEmpty) {
-      while (_isWriting) {
-        await Future.delayed(const Duration(milliseconds: 10));
-      }
-      _isWriting = true;
-      _currentBytes += buffer.length;
-      await _file!.setPosition(start + block.downloadedBytes);
-      await _file!.writeFrom(buffer);
-      block.downloadedBytes += buffer.length;
-      await _writeStatus();
-      _isWriting = false;
+      await _writeBlockBuffer(block, buffer);
     }
 
     block.downloading = false;
   }
 
+  Future<void> _writeBlockBuffer(_DownloadBlock block, List<int> buffer) {
+    if (buffer.isEmpty) {
+      return Future.value();
+    }
+    final bytes = Uint8List.fromList(buffer);
+    buffer.clear();
+    return _enqueueWrite(() async {
+      if (_canceled || _file == null) {
+        return;
+      }
+      await _file!.setPosition(block.start + block.downloadedBytes);
+      await _file!.writeFrom(bytes);
+      block.downloadedBytes += bytes.length;
+      _currentBytes += bytes.length;
+      await _writeStatus();
+    });
+  }
+
+  Future<void> _enqueueWrite(Future<void> Function() write) {
+    final next = _writeQueue.then((_) => write(), onError: (_) => write());
+    _writeQueue = next.catchError((Object _) {});
+    return next;
+  }
+
   Future<void> stop() async {
     _canceled = true;
+    await _writeQueue.catchError((_) {});
     await _file?.close();
     _file = null;
   }
@@ -269,8 +305,11 @@ class DownloadingStatus {
   final int bytesPerSecond;
 
   const DownloadingStatus(
-      this.downloadedBytes, this.totalBytes, this.bytesPerSecond,
-      [this.isFinished = false]);
+    this.downloadedBytes,
+    this.totalBytes,
+    this.bytesPerSecond, [
+    this.isFinished = false,
+  ]);
 
   @override
   String toString() {
@@ -292,8 +331,8 @@ class _DownloadBlock {
   }
 
   _DownloadBlock.fromString(String str)
-      : start = int.parse(str.split("-")[0]),
-        end = int.parse(str.split("-")[1]),
-        downloadedBytes = int.parse(str.split("-")[2]),
-        downloading = false;
+    : start = int.parse(str.split("-")[0]),
+      end = int.parse(str.split("-")[1]),
+      downloadedBytes = int.parse(str.split("-")[2]),
+      downloading = false;
 }
