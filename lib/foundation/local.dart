@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'dart:isolate';
 
-import 'package:flutter/widgets.dart' show ChangeNotifier;
+import 'package:flutter/foundation.dart';
 import 'package:flutter_saf/flutter_saf.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:sqlite3/sqlite3.dart';
@@ -177,6 +177,20 @@ class LocalComic with HistoryMixin implements Comic {
 class LocalManager with ChangeNotifier {
   static LocalManager? _instance;
 
+  @visibleForTesting
+  static bool debugSkipComicSourceInit = false;
+
+  @visibleForTesting
+  static void resetForTesting() {
+    try {
+      _instance?.dispose();
+    } catch (_) {
+      // ignore cleanup failures in partially initialized tests
+    }
+    _instance = null;
+    debugSkipComicSourceInit = false;
+  }
+
   LocalManager._();
 
   factory LocalManager() {
@@ -295,7 +309,9 @@ class LocalManager with ChangeNotifier {
     }
     _checkPathValidation();
     _checkNoMedia();
-    await ComicSourceManager().ensureInit();
+    if (!debugSkipComicSourceInit) {
+      await ComicSourceManager().ensureInit();
+    }
     restoreDownloadingTasks();
   }
 
@@ -338,17 +354,18 @@ class LocalManager with ChangeNotifier {
     notifyListeners();
   }
 
-  void remove(String id, ComicType comicType) async {
+  void remove(String id, ComicType comicType, {bool notify = true}) {
     _db.execute(
       'DELETE FROM comics WHERE id = ? AND comic_type = ?;',
       [id, comicType.value],
     );
-    notifyListeners();
+    if (notify) {
+      notifyListeners();
+    }
   }
 
   void removeComic(LocalComic comic) {
     remove(comic.id, comic.comicType);
-    notifyListeners();
   }
 
   List<LocalComic> getComics(LocalSortType sortType) {
@@ -575,7 +592,6 @@ class LocalManager with ChangeNotifier {
       }
     }
     remove(c.id, c.comicType);
-    notifyListeners();
   }
 
   void deleteComicChapters(LocalComic c, List<String> chapters) {
