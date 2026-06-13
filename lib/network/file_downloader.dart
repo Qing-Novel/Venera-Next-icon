@@ -126,6 +126,7 @@ class FileDownloader {
   }
 
   void _download(StreamController<DownloadingStatus> resultStream) async {
+    Timer? statusTimer;
     try {
       var proxy = await getProxy();
       _dio.httpClientAdapter = IOHttpClientAdapter(
@@ -156,7 +157,7 @@ class FileDownloader {
 
       _reportStatus(resultStream);
 
-      Timer.periodic(const Duration(seconds: 1), (timer) {
+      statusTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
         if (_canceled || _currentBytes >= _fileSize) {
           timer.cancel();
           return;
@@ -211,6 +212,8 @@ class FileDownloader {
       }
       resultStream.addError(e, s);
       resultStream.close();
+    } finally {
+      statusTimer?.cancel();
     }
   }
 

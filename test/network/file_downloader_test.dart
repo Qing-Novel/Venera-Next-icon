@@ -112,6 +112,7 @@ void main() {
       expect(error, isA<Exception>());
       expect(error.toString(), contains('Expected ${16 * 1024} bytes'));
       expect(statuses.where((status) => status.isFinished), isEmpty);
+      await Future<void>.delayed(const Duration(milliseconds: 1100));
     },
   );
 
