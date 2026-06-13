@@ -112,7 +112,6 @@ class DataSync with ChangeNotifier {
         return;
       }
       await taskFuture;
-      await Future<void>.delayed(Duration.zero);
     }
   }
 
