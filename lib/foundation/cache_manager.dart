@@ -14,6 +14,9 @@ class CacheManager {
   static CacheManager? instance;
 
   @visibleForTesting
+  static Future<int> Function(String dbPath, String dir)? debugScanDirOverride;
+
+  @visibleForTesting
   static bool debugDisableInitialScan = false;
 
   @visibleForTesting
@@ -23,6 +26,7 @@ class CacheManager {
   static void resetForTesting() {
     instance?._db.dispose();
     instance = null;
+    debugScanDirOverride = null;
     debugDisableInitialScan = false;
     debugOnCheckCacheStart = null;
   }
@@ -30,6 +34,8 @@ class CacheManager {
   late Database _db;
 
   late String _dbPath;
+
+  Future<void>? _initialScanTask;
 
   int? _currentSize;
 
@@ -39,6 +45,9 @@ class CacheManager {
   int dir = 0;
 
   int _limitSize = 2 * 1024 * 1024 * 1024;
+
+  @visibleForTesting
+  Future<void>? get debugInitialScanTask => _initialScanTask;
 
   static Future<int> _scanDir(String dbPath, String dir) async {
     var res = await Isolate.run(() async {
@@ -107,11 +116,19 @@ class CacheManager {
     ''');
     if (debugDisableInitialScan) {
       _currentSize = 0;
+      _initialScanTask = Future<void>.value();
     } else {
-      _scanDir(_dbPath, cachePath).then((value) {
-        _currentSize = value;
-        checkCache();
-      });
+      _initialScanTask = _runInitialScan();
+    }
+  }
+
+  Future<void> _runInitialScan() async {
+    try {
+      final scanDir = debugScanDirOverride ?? _scanDir;
+      _currentSize = await scanDir(_dbPath, cachePath);
+      await checkCache();
+    } catch (_) {
+      _currentSize = 0;
     }
   }
 
