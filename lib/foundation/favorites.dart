@@ -825,7 +825,6 @@ class LocalFavoritesManager with ChangeNotifier {
 
         displayOrder++;
       }
-      notifyListeners();
     } catch (e) {
       Log.error("Batch Move Favorites", e.toString());
       _db.execute("ROLLBACK");
@@ -869,7 +868,6 @@ class LocalFavoritesManager with ChangeNotifier {
 
         displayOrder++;
       }
-      notifyListeners();
     } catch (e) {
       Log.error("Batch Copy Favorites", e.toString());
       _db.execute("ROLLBACK");
@@ -971,8 +969,8 @@ class LocalFavoritesManager with ChangeNotifier {
       _db.execute("ROLLBACK");
       return;
     }
-    initCounts();
     _db.execute("COMMIT");
+    initCounts();
     for (var comic in comics) {
       var hash = comic.id.hashCode ^ comic.type.value;
       _hashedIds.remove(hash);
