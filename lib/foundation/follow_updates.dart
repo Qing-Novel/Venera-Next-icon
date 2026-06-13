@@ -16,8 +16,10 @@ class ComicUpdateResult {
 
 Future<ComicUpdateResult> updateComic(
   FavoriteItemWithUpdateInfo c,
-  String folder,
-) async {
+  String folder, {
+  Future<void> Function(Duration duration)? retryDelay,
+}) async {
+  final waitRetry = retryDelay ?? Future<void>.delayed;
   int retries = 3;
   while (true) {
     try {
@@ -67,11 +69,11 @@ Future<ComicUpdateResult> updateComic(
       return ComicUpdateResult(updated, null);
     } catch (e, s) {
       Log.error("Check Updates", e, s);
-      await Future.delayed(const Duration(seconds: 2));
       retries--;
       if (retries == 0) {
         return ComicUpdateResult(false, e.toString());
       }
+      await waitRetry(const Duration(seconds: 2));
     }
   }
 }
