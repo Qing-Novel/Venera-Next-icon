@@ -191,6 +191,7 @@ class FileDownloader {
           ),
         );
         resultStream.close();
+        return;
       }
 
       resultStream.add(DownloadingStatus(_currentBytes, _fileSize, 0, true));

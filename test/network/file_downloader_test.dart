@@ -75,6 +75,46 @@ void main() {
     expect(File(savePath).existsSync(), isFalse);
   });
 
+  test(
+    'FileDownloader reports incomplete resume status without finish',
+    () async {
+      final dir = Directory.systemTemp.createTempSync('venera-downloader-');
+      final bytes = List<int>.generate(16 * 1024, (index) => index % 251);
+      final server = await _serveBytes(bytes);
+      addTearDown(() async {
+        await server.close(force: true);
+        if (dir.existsSync()) {
+          dir.deleteSync(recursive: true);
+        }
+      });
+
+      final savePath = '${dir.path}/download.bin';
+      await File(
+        '$savePath.download',
+      ).writeAsString('${0}-${8 * 1024}-${8 * 1024}');
+      final downloader = FileDownloader(
+        'http://127.0.0.1:${server.port}/download.bin',
+        savePath,
+        maxConcurrent: 1,
+        chunkSize: 8 * 1024,
+      );
+
+      Object? error;
+      final statuses = <DownloadingStatus>[];
+      try {
+        await for (final status in downloader.start()) {
+          statuses.add(status);
+        }
+      } catch (e) {
+        error = e;
+      }
+
+      expect(error, isA<Exception>());
+      expect(error.toString(), contains('Expected ${16 * 1024} bytes'));
+      expect(statuses.where((status) => status.isFinished), isEmpty);
+    },
+  );
+
   test('FileDownloader closes stream when stopped during setup', () async {
     final dir = Directory.systemTemp.createTempSync('venera-downloader-');
     final bytes = List<int>.generate(16 * 1024, (index) => index % 251);
