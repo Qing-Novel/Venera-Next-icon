@@ -22,6 +22,7 @@ void main() {
     ImageDownloader.debugLoadComicImageUnwrapped = null;
     ComicSourceManager().remove(sourceKey);
     LocalManager().downloadingTasks.clear();
+    LocalManager.resetForTesting();
   });
 
   test('ImagesDownloadTask pause cancels active image stream', () async {
@@ -136,6 +137,40 @@ void main() {
     await task.debugResumeFuture!.timeout(const Duration(milliseconds: 500));
     expect(task.isPaused, isTrue);
     expect(task.isError, isFalse);
+  });
+
+  test('ImagesDownloadTask cancel before path stops speed recorder', () async {
+    final dataDir = Directory.systemTemp.createTempSync(
+      'venera-download-data-',
+    );
+    final cacheDir = Directory.systemTemp.createTempSync(
+      'venera-download-cache-',
+    );
+    addTearDown(() async {
+      await pumpEventQueue();
+      if (dataDir.existsSync()) {
+        await dataDir.delete(recursive: true);
+      }
+      if (cacheDir.existsSync()) {
+        await cacheDir.delete(recursive: true);
+      }
+    });
+
+    App.dataPath = dataDir.path;
+    App.cachePath = cacheDir.path;
+
+    final source = ComicSource.find(sourceKey)!;
+    final task = ImagesDownloadTask(source: source, comicId: 'comic-1');
+    LocalManager().downloadingTasks.add(task);
+
+    task.runRecorder();
+    expect(task.timer, isNotNull);
+
+    task.cancel();
+    await pumpEventQueue();
+
+    expect(task.timer, isNull);
+    expect(LocalManager().downloadingTasks, isNot(contains(task)));
   });
 }
 

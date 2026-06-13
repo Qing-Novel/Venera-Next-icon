@@ -105,9 +105,10 @@ class ImagesDownloadTask extends DownloadTask with _TransferSpeedMixin {
   void cancel() {
     _isRunning = false;
     _wakeRetryDelay();
+    stopRecorder();
     LocalManager().removeTask(this);
-    var local = LocalManager().find(id, comicType);
     if (path != null) {
+      var local = LocalManager().find(id, comicType);
       if (local == null) {
         Future.sync(() async {
           var tasks = this.tasks.values.toList();
