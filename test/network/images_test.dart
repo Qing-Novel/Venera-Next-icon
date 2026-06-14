@@ -101,6 +101,54 @@ void main() {
     expect(callback.destroyCount, 1);
   });
 
+  test('image onLoadFailed callback is freed after valid config', () async {
+    final callback = _FakeJSInvokable((args) => <String, dynamic>{
+          'url': 'next-url',
+        });
+
+    final result = await ImageDownloader.debugResolveImageLoadFailure(
+      callback,
+    );
+
+    expect(result, {'url': 'next-url'});
+    expect(callback.destroyCount, 1);
+  });
+
+  test('image onLoadFailed callback is freed after future config', () async {
+    final callback = _FakeJSInvokable(
+      (args) async => <String, dynamic>{'url': 'async-url'},
+    );
+
+    final result = await ImageDownloader.debugResolveImageLoadFailure(
+      callback,
+    );
+
+    expect(result, {'url': 'async-url'});
+    expect(callback.destroyCount, 1);
+  });
+
+  test('image onLoadFailed callback is freed after invalid config', () async {
+    final callback = _FakeJSInvokable((args) => 'bad-config');
+
+    final result = await ImageDownloader.debugResolveImageLoadFailure(
+      callback,
+    );
+
+    expect(result, isNull);
+    expect(callback.destroyCount, 1);
+  });
+
+  test('image onLoadFailed callback is freed after callback error', () async {
+    final error = StateError('boom');
+    final callback = _FakeJSInvokable((args) => throw error);
+
+    await expectLater(
+      ImageDownloader.debugResolveImageLoadFailure(callback),
+      throwsA(same(error)),
+    );
+    expect(callback.destroyCount, 1);
+  });
+
   test(
     'loadComicImage cancels source stream after last listener cancels',
     () async {

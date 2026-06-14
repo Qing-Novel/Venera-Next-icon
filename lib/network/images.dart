@@ -64,6 +64,30 @@ abstract class ImageDownloader {
     }
   }
 
+  @visibleForTesting
+  static Future<Map<String, dynamic>?> debugResolveImageLoadFailure(
+    JSInvokable onLoadFailed,
+  ) {
+    return _resolveImageLoadFailure(onLoadFailed);
+  }
+
+  static Future<Map<String, dynamic>?> _resolveImageLoadFailure(
+    JSInvokable onLoadFailed,
+  ) async {
+    try {
+      dynamic result = onLoadFailed([]);
+      if (result is Future) {
+        result = await result;
+      }
+      if (result is! Map<String, dynamic>) {
+        return null;
+      }
+      return result;
+    } finally {
+      onLoadFailed.free();
+    }
+  }
+
   static Stream<ImageDownloadProgress> loadThumbnail(
       String url, String? sourceKey,
       [String? cid]) async* {
@@ -200,7 +224,7 @@ abstract class ImageDownloader {
       );
     }
 
-    Future<Map<String, dynamic>?> Function()? onLoadFailed;
+    JSInvokable? onLoadFailed;
 
     var configs = <String, dynamic>{};
     if (sourceKey != null) {
@@ -216,16 +240,9 @@ abstract class ImageDownloader {
           'user-agent': webUA,
         };
 
-        if (configs['onLoadFailed'] is JSInvokable) {
-          onLoadFailed = () async {
-            dynamic result = (configs['onLoadFailed'] as JSInvokable)([]);
-            if (result is Future) {
-              result = await result;
-            }
-            if (result is! Map<String, dynamic>) return null;
-            return result;
-          };
-        }
+        final onLoadFailedConfig = configs['onLoadFailed'];
+        onLoadFailed =
+            onLoadFailedConfig is JSInvokable ? onLoadFailedConfig : null;
 
         var dio = AppDio(BaseOptions(
           headers: configs['headers'],
@@ -289,16 +306,17 @@ abstract class ImageDownloader {
           rethrow;
         }
         retriesRemaining--;
-        var newConfig = await onLoadFailedCallback();
-        (configs['onLoadFailed'] as JSInvokable).free();
         onLoadFailed = null;
+        var newConfig = await _resolveImageLoadFailure(onLoadFailedCallback);
         if (newConfig == null) {
           rethrow;
         }
         configs = newConfig;
       } finally {
-        if (onLoadFailed != null) {
-          (configs['onLoadFailed'] as JSInvokable).free();
+        final onLoadFailedCallback = onLoadFailed;
+        if (onLoadFailedCallback != null) {
+          onLoadFailed = null;
+          onLoadFailedCallback.free();
         }
       }
     }
