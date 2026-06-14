@@ -32,6 +32,43 @@ part 'models.dart';
 
 part 'types.dart';
 
+@visibleForTesting
+Map<String, Map<String, dynamic>>? debugNormalizeComicSourceSettings(
+  dynamic value,
+) {
+  return _normalizeComicSourceSettings(value);
+}
+
+Map<String, Map<String, dynamic>>? _normalizeComicSourceSettings(
+  dynamic value,
+) {
+  if (value is! Map) {
+    return null;
+  }
+  var newMap = <String, Map<String, dynamic>>{};
+  for (var e in value.entries) {
+    final key = e.key;
+    final value = e.value;
+    if (key is! String || value is! Map) {
+      continue;
+    }
+    var v = <String, dynamic>{};
+    for (var e2 in value.entries) {
+      final itemKey = e2.key;
+      if (itemKey is! String) {
+        continue;
+      }
+      var v2 = e2.value;
+      if (v2 is JSInvokable) {
+        v2 = JSAutoFreeFunction(v2);
+      }
+      v[itemKey] = v2;
+    }
+    newMap[key] = v;
+  }
+  return newMap;
+}
+
 class ComicSourceManager with ChangeNotifier, Init {
   final List<ComicSource> _sources = [];
 
@@ -276,28 +313,7 @@ class ComicSource {
   Map<String, Map<String, dynamic>>? getSettingsDynamic() {
     try {
       var value = JsEngine().runCode("ComicSource.sources.$key.settings");
-      if (value is Map) {
-        var newMap = <String, Map<String, dynamic>>{};
-        for (var e in value.entries) {
-          if (e.key is! String) {
-            continue;
-          }
-          var v = <String, dynamic>{};
-          for (var e2 in e.value.entries) {
-            if (e2.key is! String) {
-              continue;
-            }
-            var v2 = e2.value;
-            if (v2 is JSInvokable) {
-              v2 = JSAutoFreeFunction(v2);
-            }
-            v[e2.key] = v2;
-          }
-          newMap[e.key] = v;
-        }
-        return newMap;
-      }
-      return null;
+      return _normalizeComicSourceSettings(value);
     } catch (e) {
       Log.error("ComicSource", "Failed to get dynamic settings: $e");
       return settings;
