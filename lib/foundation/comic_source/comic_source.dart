@@ -77,6 +77,16 @@ debugNormalizeComicSourceCommentsResult(dynamic value) {
   return _normalizeComicSourceCommentsResult(value);
 }
 
+@visibleForTesting
+List<ArchiveInfo>? debugNormalizeComicSourceArchiveList(dynamic value) {
+  return _normalizeComicSourceArchiveList(value);
+}
+
+@visibleForTesting
+String? debugNormalizeComicSourceArchiveDownloadUrl(dynamic value) {
+  return _normalizeComicSourceArchiveDownloadUrl(value);
+}
+
 Map<String, dynamic>? _normalizeComicSourceLoadingConfig(dynamic value) {
   return _normalizeComicSourceStringKeyedMap(value);
 }
@@ -211,6 +221,16 @@ _normalizeComicSourceCommentsResult(dynamic value) {
     return null;
   }
   return (data: data, comments: comments);
+}
+
+List<ArchiveInfo>? _normalizeComicSourceArchiveList(dynamic value) {
+  final items = _normalizeComicSourceStringKeyedMapList(value);
+  if (items == null) return null;
+  return items.map(ArchiveInfo.fromJson).toList();
+}
+
+String? _normalizeComicSourceArchiveDownloadUrl(dynamic value) {
+  return value is String ? value : null;
 }
 
 ({Map<String, dynamic> data, List<String> items})?

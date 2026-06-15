@@ -1230,9 +1230,9 @@ class ComicSourceParser {
           var res = await JsEngine().runCode("""
               ComicSource.sources.$_key.comic.archive.getArchives(${jsonEncode(cid)})
             """);
-          return Res(
-            (res as List).map((e) => ArchiveInfo.fromJson(e)).toList(),
-          );
+          final archives = _normalizeComicSourceArchiveList(res);
+          if (archives == null) throw "Invalid data";
+          return Res(archives);
         } catch (e, s) {
           Log.error("Network", "$e\n$s");
           return Res.error(e.toString());
@@ -1243,7 +1243,9 @@ class ComicSourceParser {
           var res = await JsEngine().runCode("""
               ComicSource.sources.$_key.comic.archive.getDownloadUrl(${jsonEncode(cid)}, ${jsonEncode(aid)})
             """);
-          return Res(res as String);
+          final url = _normalizeComicSourceArchiveDownloadUrl(res);
+          if (url == null) throw "Invalid data";
+          return Res(url);
         } catch (e, s) {
           Log.error("Network", "$e\n$s");
           return Res.error(e.toString());

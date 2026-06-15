@@ -241,4 +241,39 @@ void main() {
       isNull,
     );
   });
+
+  test('normalize archive list accepts dynamic item maps', () {
+    final archives = debugNormalizeComicSourceArchiveList([
+      <dynamic, dynamic>{
+        'title': 'Volume 1',
+        'description': 'zip archive',
+        'id': 'archive-1',
+      },
+    ]);
+
+    expect(archives, hasLength(1));
+    expect(archives!.single.title, 'Volume 1');
+    expect(archives.single.description, 'zip archive');
+    expect(archives.single.id, 'archive-1');
+  });
+
+  test('normalize archive list rejects invalid data', () {
+    expect(debugNormalizeComicSourceArchiveList(null), isNull);
+    expect(debugNormalizeComicSourceArchiveList('bad'), isNull);
+    expect(
+      debugNormalizeComicSourceArchiveList([
+        <dynamic, dynamic>{1: 'bad-key'},
+      ]),
+      isNull,
+    );
+  });
+
+  test('normalize archive download url requires string', () {
+    expect(
+      debugNormalizeComicSourceArchiveDownloadUrl('https://example.com/a.zip'),
+      'https://example.com/a.zip',
+    );
+    expect(debugNormalizeComicSourceArchiveDownloadUrl(null), isNull);
+    expect(debugNormalizeComicSourceArchiveDownloadUrl(1), isNull);
+  });
 }
