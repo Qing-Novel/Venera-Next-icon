@@ -265,12 +265,14 @@ class _HistoryState extends State<_History> {
     history = HistoryManager().getRecent();
     count = HistoryManager().count();
     HistoryManager().addListener(onHistoryChange);
+    LocalFavoritesManager().addListener(onHistoryChange);
     super.initState();
   }
 
   @override
   void dispose() {
     HistoryManager().removeListener(onHistoryChange);
+    LocalFavoritesManager().removeListener(onHistoryChange);
     super.dispose();
   }
 

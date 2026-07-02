@@ -185,6 +185,55 @@ void main() {
   );
 
   test(
+    'tracks cached update status for the follow updates folder',
+    () async {
+      final dataDir = Directory.systemTemp.createTempSync(
+        'venera-favorites-data-',
+      );
+      final cacheDir = Directory.systemTemp.createTempSync(
+        'venera-favorites-cache-',
+      );
+      final previousFollowUpdatesFolder =
+          appdata.settings['followUpdatesFolder'];
+      addTearDown(() async {
+        await LocalFavoritesManager().debugWaitForHashedIdsRefresh();
+        try {
+          LocalFavoritesManager().close();
+        } catch (_) {
+          // ignore cleanup failures in partially initialized tests
+        }
+        LocalFavoritesManager.cache = null;
+        appdata.settings['followUpdatesFolder'] = previousFollowUpdatesFolder;
+        if (dataDir.existsSync()) {
+          dataDir.deleteSync(recursive: true);
+        }
+        if (cacheDir.existsSync()) {
+          cacheDir.deleteSync(recursive: true);
+        }
+      });
+
+      App.dataPath = dataDir.path;
+      App.cachePath = cacheDir.path;
+      LocalFavoritesManager.cache = null;
+
+      final manager = LocalFavoritesManager();
+      await manager.init();
+      const folder = LocalFavoritesManager.trackingFolderName;
+      final item = _favorite('updated-comic');
+
+      manager.addComic(folder, item, null, '2026-07-01');
+      expect(manager.hasNewUpdate(item.id, item.type), isFalse);
+
+      manager.updateUpdateTime(folder, item.id, item.type, '2026-07-02');
+      expect(manager.hasNewUpdate(item.id, item.type), isTrue);
+
+      manager.markAsRead(item.id, item.type, notify: false);
+      expect(manager.hasNewUpdate(item.id, item.type), isFalse);
+    },
+    skip: _sqliteAvailable() ? false : 'sqlite3 native library is unavailable',
+  );
+
+  test(
     'empty batch favorite operations do not notify listeners',
     () async {
       final dataDir = Directory.systemTemp.createTempSync(

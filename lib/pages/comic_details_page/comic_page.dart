@@ -357,6 +357,10 @@ class _ComicPageState extends LoadingState<ComicPage, ComicDetails>
   Widget buildActions() {
     bool isMobile = context.width < changePoint;
     bool hasHistory = history != null && (history!.ep > 1 || history!.page > 1);
+    bool hasUpdate = LocalFavoritesManager().hasNewUpdate(
+      comic.id,
+      comic.comicType,
+    );
     return SliverLazyToBoxAdapter(
       child: Column(
         children: [
@@ -443,29 +447,17 @@ class _ComicPageState extends LoadingState<ComicPage, ComicDetails>
                 ),
               ],
             ).paddingHorizontal(16).paddingVertical(8),
+          if (hasUpdate)
+            _StatusPill(
+              icon: Icons.update,
+              iconColor: context.useTextColor(Colors.deepOrange),
+              text: "Updated since last reading".tl,
+            ).toAlign(Alignment.centerLeft),
           if (history != null)
-            Container(
-              margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(
-                color: context.colorScheme.surfaceContainerLow,
-                borderRadius: BorderRadius.circular(24),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.history, color: context.useTextColor(Colors.teal)),
-                  const SizedBox(width: 8),
-                  Flexible(
-                    child: Text(
-                      _buildLastReadingText(),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                  const SizedBox(width: 4),
-                ],
-              ),
+            _StatusPill(
+              icon: Icons.history,
+              iconColor: context.useTextColor(Colors.teal),
+              text: _buildLastReadingText(),
             ).toAlign(Alignment.centerLeft),
           const Divider(),
         ],
@@ -800,6 +792,43 @@ class _ComicPageState extends LoadingState<ComicPage, ComicDetails>
         context.showMessage(message: "Error".tl);
       }
     }
+  }
+}
+
+class _StatusPill extends StatelessWidget {
+  const _StatusPill({
+    required this.icon,
+    required this.iconColor,
+    required this.text,
+  });
+
+  final IconData icon;
+
+  final Color iconColor;
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: context.colorScheme.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(24),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, color: iconColor),
+          const SizedBox(width: 8),
+          Flexible(
+            child: Text(text, maxLines: 1, overflow: TextOverflow.ellipsis),
+          ),
+          const SizedBox(width: 4),
+        ],
+      ),
+    );
   }
 }
 

@@ -36,6 +36,7 @@ class _FollowUpdatesWidgetState
       _count = 0;
       updatedComics = [];
       appdata.settings["followUpdatesFolder"] = null;
+      LocalFavoritesManager().refreshUpdateIds();
       Future.microtask(() {
         appdata.saveData();
       });
@@ -259,10 +260,7 @@ class _FollowUpdatesPageState extends AutomaticGlobalState<FollowUpdatesPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            ListTile(
-              leading: Icon(Icons.stars_outlined),
-              title: Text(folder!),
-            ),
+            ListTile(leading: Icon(Icons.stars_outlined), title: Text(folder!)),
             Text(
               "Automatic update checking enabled.".tl,
               style: ts.s14,
@@ -312,10 +310,7 @@ class _FollowUpdatesPageState extends AutomaticGlobalState<FollowUpdatesPage> {
               children: [
                 Icon(Icons.update),
                 const SizedBox(width: 8),
-                Text(
-                  "Updates".tl,
-                  style: ts.s18,
-                ),
+                Text("Updates".tl, style: ts.s18),
                 const Spacer(),
                 if (updatedComics.isNotEmpty)
                   IconButton(
@@ -330,8 +325,10 @@ class _FollowUpdatesPageState extends AutomaticGlobalState<FollowUpdatesPage> {
                             LocalFavoritesManager().markAsRead(
                               comic.id,
                               comic.type,
+                              notify: false,
                             );
                           }
+                          LocalFavoritesManager().notifyChanges();
                           updateFollowUpdatesUI();
                           appdata.saveData();
                         },
@@ -345,10 +342,9 @@ class _FollowUpdatesPageState extends AutomaticGlobalState<FollowUpdatesPage> {
         if (updatedComics.isNotEmpty)
           SliverToBoxAdapter(
             child: Text(
-                    "The comic will be marked as no updates as soon as you read it."
-                        .tl)
-                .paddingHorizontal(16)
-                .paddingVertical(4),
+              "The comic will be marked as no updates as soon as you read it."
+                  .tl,
+            ).paddingHorizontal(16).paddingVertical(4),
           ),
         if (updatedComics.isNotEmpty)
           SliverGridComics(comics: updatedComics)
@@ -357,24 +353,23 @@ class _FollowUpdatesPageState extends AutomaticGlobalState<FollowUpdatesPage> {
             child: Row(
               children: [
                 Container(
-                  margin:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                  margin: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 8,
+                  ),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
                     color: Theme.of(context).colorScheme.surfaceContainerLow,
                     borderRadius: BorderRadius.circular(16),
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        "No updates found".tl,
-                        style: ts.s16,
-                      ),
-                    ],
+                    children: [Text("No updates found".tl, style: ts.s16)],
                   ),
-                )
+                ),
               ],
             ),
           ),
@@ -401,10 +396,7 @@ class _FollowUpdatesPageState extends AutomaticGlobalState<FollowUpdatesPage> {
               children: [
                 Icon(Icons.list),
                 const SizedBox(width: 8),
-                Text(
-                  "All Comics".tl,
-                  style: ts.s18,
-                ),
+                Text("All Comics".tl, style: ts.s18),
               ],
             ),
           ),
@@ -424,53 +416,56 @@ class _FollowUpdatesPageState extends AutomaticGlobalState<FollowUpdatesPage> {
     showDialog(
       context: App.rootContext,
       builder: (context) {
-        return StatefulBuilder(builder: (context, setState) {
-          return ContentDialog(
-            title: "Choose Folder".tl,
-            content: Column(
-              children: [
-                ListTile(
-                  title: Text("Folder".tl),
-                  trailing: Select(
-                    minWidth: 120,
-                    current: selectedFolder,
-                    values: folders,
-                    onTap: (i) {
-                      setState(() {
-                        selectedFolder = folders[i];
-                      });
-                    },
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return ContentDialog(
+              title: "Choose Folder".tl,
+              content: Column(
+                children: [
+                  ListTile(
+                    title: Text("Folder".tl),
+                    trailing: Select(
+                      minWidth: 120,
+                      current: selectedFolder,
+                      values: folders,
+                      onTap: (i) {
+                        setState(() {
+                          selectedFolder = folders[i];
+                        });
+                      },
+                    ),
                   ),
+                ],
+              ),
+              actions: [
+                if (appdata.settings["followUpdatesFolder"] != null)
+                  TextButton(
+                    onPressed: () {
+                      disable();
+                      context.pop();
+                    },
+                    child: Text("Disable".tl),
+                  ),
+                FilledButton(
+                  onPressed: selectedFolder == null
+                      ? null
+                      : () {
+                          context.pop();
+                          setFolder(selectedFolder!);
+                        },
+                  child: Text("Confirm".tl),
                 ),
               ],
-            ),
-            actions: [
-              if (appdata.settings["followUpdatesFolder"] != null)
-                TextButton(
-                  onPressed: () {
-                    disable();
-                    context.pop();
-                  },
-                  child: Text("Disable".tl),
-                ),
-              FilledButton(
-                onPressed: selectedFolder == null
-                    ? null
-                    : () {
-                        context.pop();
-                        setFolder(selectedFolder!);
-                      },
-                child: Text("Confirm".tl),
-              ),
-            ],
-          );
-        });
+            );
+          },
+        );
       },
     );
   }
 
   void disable() {
     appdata.settings["followUpdatesFolder"] = null;
+    LocalFavoritesManager().refreshUpdateIds();
     appdata.saveData();
     updateFollowUpdatesUI();
   }
@@ -507,6 +502,7 @@ class _FollowUpdatesPageState extends AutomaticGlobalState<FollowUpdatesPage> {
 
     setState(() {
       appdata.settings["followUpdatesFolder"] = folder;
+      LocalFavoritesManager().refreshUpdateIds();
       updatedComics = [];
       allComics = LocalFavoritesManager().getComicsWithUpdatesInfo(folder);
       sortComics();

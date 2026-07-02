@@ -219,6 +219,10 @@ class LocalFavoritesManager with ChangeNotifier {
 
   var _hashedIds = <int, int>{};
 
+  var _updatedIds = <int>{};
+
+  String? _updatedIdsFolder;
+
   Future<void>? _hashedIdsRefresh;
 
   bool _isClosed = false;
@@ -293,6 +297,7 @@ class LocalFavoritesManager with ChangeNotifier {
     for (var folder in folderNames) {
       counts[folder] = count(folder);
     }
+    refreshUpdateIds();
     _refreshHashedIds(folderNames);
   }
 
@@ -335,6 +340,23 @@ class LocalFavoritesManager with ChangeNotifier {
   @visibleForTesting
   Future<void> debugWaitForHashedIdsRefresh() async {
     await _hashedIdsRefresh;
+  }
+
+  void refreshUpdateIds() {
+    var folder = appdata.settings['followUpdatesFolder'];
+    if (folder is! String || !existsFolder(folder)) {
+      _updatedIds = {};
+      _updatedIdsFolder = null;
+      return;
+    }
+    var rows = _db.select("""
+      select id, type from "$folder"
+      where has_new_update == 1;
+    """);
+    _updatedIdsFolder = folder;
+    _updatedIds = rows
+        .map((row) => (row["id"] as String).hashCode ^ (row["type"] as int))
+        .toSet();
   }
 
   void reduceHashedId(String id, int type) {
@@ -1157,6 +1179,7 @@ class LocalFavoritesManager with ChangeNotifier {
           [newTime, id, type.value],
         );
         if (followUpdatesFolder == folder) {
+          _updatedIds.remove(id.hashCode ^ type.value);
           updateFollowUpdatesUI();
         }
       }
@@ -1258,6 +1281,14 @@ class LocalFavoritesManager with ChangeNotifier {
     return _hashedIds.containsKey(hash);
   }
 
+  bool hasNewUpdate(String id, ComicType type) {
+    var folder = appdata.settings['followUpdatesFolder'];
+    if (folder is! String || folder != _updatedIdsFolder) {
+      return false;
+    }
+    return _updatedIds.contains(id.hashCode ^ type.value);
+  }
+
   void updateInfo(String folder, FavoriteItem comic, [bool notify = true]) {
     _db.execute(
       """
@@ -1342,6 +1373,9 @@ class LocalFavoritesManager with ChangeNotifier {
         add column last_check_time int;
       """);
     }
+    if (appdata.settings['followUpdatesFolder'] == table) {
+      refreshUpdateIds();
+    }
   }
 
   void updateUpdateTime(
@@ -1374,6 +1408,15 @@ class LocalFavoritesManager with ChangeNotifier {
         type.value,
       ],
     );
+    if (appdata.settings['followUpdatesFolder'] == folder) {
+      _updatedIdsFolder = folder;
+      var hash = id.hashCode ^ type.value;
+      if (hasNewUpdate) {
+        _updatedIds.add(hash);
+      } else {
+        _updatedIds.remove(hash);
+      }
+    }
   }
 
   void updateCheckTime(String folder, String id, ComicType type) {
@@ -1433,9 +1476,9 @@ class LocalFavoritesManager with ChangeNotifier {
         .toList();
   }
 
-  void markAsRead(String id, ComicType type) {
+  void markAsRead(String id, ComicType type, {bool notify = true}) {
     var folder = appdata.settings['followUpdatesFolder'];
-    if (!existsFolder(folder)) {
+    if (folder is! String || !existsFolder(folder)) {
       return;
     }
     _db.execute(
@@ -1446,6 +1489,11 @@ class LocalFavoritesManager with ChangeNotifier {
     """,
       [id, type.value],
     );
+    _updatedIds.remove(id.hashCode ^ type.value);
+    if (notify) {
+      updateFollowUpdatesUI();
+      notifyListeners();
+    }
   }
 
   void close() {
@@ -1454,6 +1502,7 @@ class LocalFavoritesManager with ChangeNotifier {
   }
 
   void notifyChanges() {
+    refreshUpdateIds();
     notifyListeners();
   }
 }
