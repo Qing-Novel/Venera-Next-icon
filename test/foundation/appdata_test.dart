@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:path/path.dart' as p;
 import 'package:venera/foundation/app.dart';
 import 'package:venera/foundation/appdata.dart';
 
@@ -39,6 +40,80 @@ void main() {
       expect(appData['settings']['proxy'], 'second');
       expect(appData['searchHistory'], ['second']);
       expect(syncData['settings'].containsKey('proxy'), isFalse);
+    },
+  );
+
+  test(
+    'migrates legacy Windows company directory when the new directory is empty',
+    () async {
+      final baseDir = Directory.systemTemp.createTempSync(
+        'venera-appdata-migration-',
+      );
+      addTearDown(() {
+        if (baseDir.existsSync()) {
+          baseDir.deleteSync(recursive: true);
+        }
+      });
+
+      final legacyDir = Directory(
+        p.join(baseDir.path, 'CyrilPeng_venera-next', 'VeneraNext'),
+      )..createSync(recursive: true);
+      File(p.join(legacyDir.path, 'appdata.json')).writeAsStringSync('legacy');
+      final legacySubDir = Directory(p.join(legacyDir.path, 'comic_source'))
+        ..createSync();
+      File(
+        p.join(legacySubDir.path, 'source.json'),
+      ).writeAsStringSync('source');
+
+      final currentDir = Directory(
+        p.join(baseDir.path, 'com.github.cyrilpeng', 'VeneraNext'),
+      )..createSync(recursive: true);
+
+      await App.migrateLegacyWindowsPathForTesting(currentDir.path);
+
+      expect(
+        File(p.join(currentDir.path, 'appdata.json')).readAsStringSync(),
+        'legacy',
+      );
+      expect(
+        File(
+          p.join(currentDir.path, 'comic_source', 'source.json'),
+        ).readAsStringSync(),
+        'source',
+      );
+    },
+  );
+
+  test(
+    'does not migrate legacy Windows data into a non-empty directory',
+    () async {
+      final baseDir = Directory.systemTemp.createTempSync(
+        'venera-appdata-migration-',
+      );
+      addTearDown(() {
+        if (baseDir.existsSync()) {
+          baseDir.deleteSync(recursive: true);
+        }
+      });
+
+      final legacyDir = Directory(
+        p.join(baseDir.path, 'CyrilPeng_venera-next', 'VeneraNext'),
+      )..createSync(recursive: true);
+      File(p.join(legacyDir.path, 'appdata.json')).writeAsStringSync('legacy');
+
+      final currentDir = Directory(
+        p.join(baseDir.path, 'com.github.cyrilpeng', 'VeneraNext'),
+      )..createSync(recursive: true);
+      File(
+        p.join(currentDir.path, 'appdata.json'),
+      ).writeAsStringSync('current');
+
+      await App.migrateLegacyWindowsPathForTesting(currentDir.path);
+
+      expect(
+        File(p.join(currentDir.path, 'appdata.json')).readAsStringSync(),
+        'current',
+      );
     },
   );
 }

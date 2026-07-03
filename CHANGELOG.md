@@ -2,6 +2,13 @@
 
 本项目遵循语义化版本，记录 fork 后的主要变更。
 
+## 未发布
+
+### 修复
+
+- Windows 应用元数据中的公司名改为反向域名 `com.github.cyrilpeng`，使个人数据目录使用更规范的 `com.github.cyrilpeng\VeneraNext` 结构，并在新目录为空时自动迁移旧目录数据。
+- 缩短 Windows 和 macOS 发行版版权信息，避免属性面板中显示不全。
+
 ## v1.10.0-rc.4
 
 ### 修复

@@ -11,4 +11,4 @@ PRODUCT_NAME = VeneraNext
 PRODUCT_BUNDLE_IDENTIFIER = com.github.cyrilpeng.veneranext
 
 // The copyright displayed in application information
-PRODUCT_COPYRIGHT = Copyright © 2026 https://github.com/CyrilPeng/venera-next
+PRODUCT_COPYRIGHT = © 2026 github.com/CyrilPeng/venera-next
