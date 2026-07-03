@@ -23,11 +23,7 @@ def _read(path: Path) -> str:
 def _write(path: Path, text: str) -> None:
     raw = path.read_bytes() if path.exists() else b""
     has_bom = raw.startswith(b"\xef\xbb\xbf")
-    newline = "\r\n" if b"\r\n" in raw else "\n"
-    normalized = text.replace("\r\n", "\n").replace("\r", "\n")
-    if newline != "\n":
-        normalized = normalized.replace("\n", newline)
-    data = normalized.encode("utf-8")
+    data = text.encode("utf-8")
     if has_bom:
         data = b"\xef\xbb\xbf" + data
     path.write_bytes(data)
@@ -61,7 +57,10 @@ def pubspec_version(config: dict) -> str:
 
 
 def _pubspec_version_line() -> re.Pattern:
-    return re.compile(r"^version:\s*(?P<version>\S+)\s*$", re.MULTILINE)
+    return re.compile(
+        r"^version:[^\S\r\n]*(?P<version>\S+)[^\S\r\n]*$",
+        re.MULTILINE,
+    )
 
 
 def sync_pubspec(config: dict) -> bool:
@@ -81,10 +80,14 @@ def sync_pubspec(config: dict) -> bool:
 def sync_changelog_heading(config: dict) -> bool:
     text = _read(CHANGELOG_PATH)
     tag = release_tag(config)
-    if re.search(rf"^##\s+{re.escape(tag)}\s*$", text, re.MULTILINE):
+    if re.search(
+        rf"^##[^\S\r\n]+{re.escape(tag)}[^\S\r\n]*$",
+        text,
+        re.MULTILINE,
+    ):
         return False
     updated = re.sub(
-        r"^##\s+(?:未发布|Unreleased)\s*$",
+        r"^##[^\S\r\n]+(?:未发布|Unreleased)[^\S\r\n]*$",
         f"## {tag}",
         text,
         count=1,
@@ -125,7 +128,7 @@ def check_release_files(tag: str | None = None) -> None:
 
     changelog_text = _read(CHANGELOG_PATH)
     if not re.search(
-        rf"^##\s+{re.escape(expected_tag)}\s*$",
+        rf"^##[^\S\r\n]+{re.escape(expected_tag)}[^\S\r\n]*$",
         changelog_text,
         re.MULTILINE,
     ):

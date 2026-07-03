@@ -70,7 +70,20 @@ jobs:
           architecture: x64
       - run: sudo xcode-select --switch /Applications/Xcode_16.4.app
       - run: flutter pub get --enforce-lockfile
-      - run: flutter build ios --release --no-codesign
+      - name: Build iOS app
+        run: |
+          APP_VERSION=$(sed -n 's/^version:[[:space:]]*//p' pubspec.yaml | tr -d '\r\n')
+          IOS_VERSION="${APP_VERSION%%+*}"
+          IOS_BUILD="${APP_VERSION#*+}"
+          if [ "$IOS_BUILD" = "$APP_VERSION" ]; then
+            IOS_BUILD=1
+          fi
+          IOS_VERSION="${IOS_VERSION%%-*}"
+          echo "Building iOS bundle version ${IOS_VERSION}+${IOS_BUILD} from ${APP_VERSION}"
+          cp pubspec.yaml pubspec.yaml.release
+          trap 'mv pubspec.yaml.release pubspec.yaml' EXIT
+          perl -0pi -e "s/^version:.*/version: ${IOS_VERSION}+${IOS_BUILD}/m" pubspec.yaml
+          flutter build ios --release --no-codesign
       - run: |
           mkdir -p build/ios/iphoneos/Payload
           mv build/ios/iphoneos/Runner.app build/ios/iphoneos/Payload

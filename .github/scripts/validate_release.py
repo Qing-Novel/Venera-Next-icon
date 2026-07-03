@@ -18,7 +18,10 @@ def read_text(path: str) -> str:
 
 def extract_release_notes(tag: str) -> str:
     text = read_text("CHANGELOG.md")
-    pattern = rf"^##\s+{re.escape(tag)}\s*$\n(?P<body>.*?)(?=^##\s+|\Z)"
+    pattern = (
+        rf"^##[^\S\r\n]+{re.escape(tag)}[^\S\r\n]*$\n"
+        r"(?P<body>.*?)(?=^##[^\S\r\n]+|\Z)"
+    )
     match = re.search(pattern, text, re.MULTILINE | re.DOTALL)
     if not match:
         fail(f"CHANGELOG.md does not contain a section for {tag}")
