@@ -359,6 +359,15 @@ class LocalFavoritesManager with ChangeNotifier {
         .toSet();
   }
 
+  void _syncFollowUpdatesIfAffected(Iterable<String> folders) {
+    var folder = appdata.settings['followUpdatesFolder'];
+    if (folder is! String || !folders.contains(folder)) {
+      return;
+    }
+    refreshUpdateIds();
+    updateFollowUpdatesUI();
+  }
+
   void reduceHashedId(String id, int type) {
     var hash = id.hashCode ^ type;
     if (_hashedIds.containsKey(hash)) {
@@ -799,6 +808,7 @@ class LocalFavoritesManager with ChangeNotifier {
     }
     var hash = comic.id.hashCode ^ comic.type.value;
     _hashedIds[hash] = (_hashedIds[hash] ?? 0) + 1;
+    _syncFollowUpdatesIfAffected([folder]);
     notifyListeners();
     return true;
   }
@@ -842,10 +852,13 @@ class LocalFavoritesManager with ChangeNotifier {
       """
     delete from "$sourceFolder"
     where id == ? and type == ?;
-  """,
+    """,
       [id, type.value],
     );
 
+    counts[targetFolder] = count(targetFolder);
+    counts[sourceFolder] = count(sourceFolder);
+    _syncFollowUpdatesIfAffected([sourceFolder, targetFolder]);
     notifyListeners();
   }
 
@@ -899,6 +912,7 @@ class LocalFavoritesManager with ChangeNotifier {
     counts[targetFolder] = count(targetFolder);
     counts[sourceFolder] = count(sourceFolder);
     refreshHashedIds();
+    _syncFollowUpdatesIfAffected([sourceFolder, targetFolder]);
 
     notifyListeners();
   }
@@ -945,12 +959,15 @@ class LocalFavoritesManager with ChangeNotifier {
     // Update counts
     counts[targetFolder] = count(targetFolder);
     refreshHashedIds();
+    _syncFollowUpdatesIfAffected([targetFolder]);
 
     notifyListeners();
   }
 
   /// delete a folder
   void deleteFolder(String name) {
+    var wasFollowUpdatesFolder =
+        appdata.settings['followUpdatesFolder'] == name;
     _db.execute("""
       drop table "$name";
     """);
@@ -963,6 +980,12 @@ class LocalFavoritesManager with ChangeNotifier {
     );
     counts.remove(name);
     refreshHashedIds();
+    if (wasFollowUpdatesFolder) {
+      appdata.settings['followUpdatesFolder'] = null;
+      refreshUpdateIds();
+      updateFollowUpdatesUI();
+      appdata.saveData();
+    }
     notifyListeners();
   }
 
@@ -981,6 +1004,7 @@ class LocalFavoritesManager with ChangeNotifier {
       counts[folder] = count(folder);
     }
     reduceHashedId(id, type.value);
+    _syncFollowUpdatesIfAffected([folder]);
     notifyListeners();
   }
 
@@ -1014,6 +1038,7 @@ class LocalFavoritesManager with ChangeNotifier {
     for (var comic in comics) {
       reduceHashedId(comic.id, comic.type.value);
     }
+    _syncFollowUpdatesIfAffected([folder]);
     notifyListeners();
   }
 
@@ -1047,6 +1072,7 @@ class LocalFavoritesManager with ChangeNotifier {
       var hash = comic.id.hashCode ^ comic.type.value;
       _hashedIds.remove(hash);
     }
+    _syncFollowUpdatesIfAffected(folderNames);
     notifyListeners();
   }
 
@@ -1105,6 +1131,8 @@ class LocalFavoritesManager with ChangeNotifier {
     if (after.contains('"')) {
       throw "Invalid name";
     }
+    var wasFollowUpdatesFolder =
+        appdata.settings['followUpdatesFolder'] == before;
     _db.execute("""
       ALTER TABLE "$before"
       RENAME TO "$after";
@@ -1127,6 +1155,12 @@ class LocalFavoritesManager with ChangeNotifier {
     );
     counts[after] = counts[before] ?? 0;
     counts.remove(before);
+    if (wasFollowUpdatesFolder) {
+      appdata.settings['followUpdatesFolder'] = after;
+      refreshUpdateIds();
+      updateFollowUpdatesUI();
+      appdata.saveData();
+    }
     notifyListeners();
   }
 

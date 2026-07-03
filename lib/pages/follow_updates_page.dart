@@ -22,19 +22,19 @@ class _FollowUpdatesWidgetState
     extends AutomaticGlobalState<FollowUpdatesWidget> {
   int _count = 0;
 
-  List<FavoriteItemWithUpdateInfo> updatedComics = [];
+  List<FavoriteItemWithUpdateInfo> previewComics = [];
 
   String? get folder => appdata.settings["followUpdatesFolder"];
 
   void updatePreviewData() {
     if (folder == null) {
       _count = 0;
-      updatedComics = [];
+      previewComics = [];
       return;
     }
     if (!LocalFavoritesManager().folderNames.contains(folder)) {
       _count = 0;
-      updatedComics = [];
+      previewComics = [];
       appdata.settings["followUpdatesFolder"] = null;
       LocalFavoritesManager().refreshUpdateIds();
       Future.microtask(() {
@@ -42,10 +42,7 @@ class _FollowUpdatesWidgetState
       });
     } else {
       _count = LocalFavoritesManager().countUpdates(folder!);
-      updatedComics = LocalFavoritesManager()
-          .getComicsWithUpdatesInfo(folder!)
-          .where((comic) => comic.hasNewUpdate)
-          .toList();
+      previewComics = getFollowUpdatesPreviewComics(folder!);
     }
   }
 
@@ -108,14 +105,14 @@ class _FollowUpdatesWidgetState
                   ],
                 ),
               ).paddingHorizontal(16),
-              if (updatedComics.isNotEmpty)
+              if (previewComics.isNotEmpty)
                 SizedBox(
                   height: 136,
                   child: ListView.builder(
                     scrollDirection: Axis.horizontal,
-                    itemCount: updatedComics.length,
+                    itemCount: previewComics.length,
                     itemBuilder: (context, index) {
-                      final comic = updatedComics[index];
+                      final comic = previewComics[index];
                       final heroID = comic.id.hashCode;
                       return SimpleComicTile(
                         comic: comic,

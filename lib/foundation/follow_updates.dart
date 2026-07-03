@@ -167,6 +167,14 @@ Stream<UpdateProgress> updateFolder(String folder, bool ignoreCheckTime) {
   return stream.stream;
 }
 
+/// Comics shown in the home follow-updates preview.
+///
+/// The preview represents the user's follow-updates folder, while the update
+/// badge and count are separate hints on top of that list.
+List<FavoriteItemWithUpdateInfo> getFollowUpdatesPreviewComics(String folder) {
+  return LocalFavoritesManager().getComicsWithUpdatesInfo(folder);
+}
+
 Future<String> getUpdatedComicsAsJson(String folder) async {
   var comics = LocalFavoritesManager().getComicsWithUpdatesInfo(folder);
   var updatedComics = comics.where((c) => c.hasNewUpdate).toList();

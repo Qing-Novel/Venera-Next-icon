@@ -4,8 +4,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:sqlite3/sqlite3.dart';
 import 'package:venera/foundation/app.dart';
 import 'package:venera/foundation/appdata.dart';
+import 'package:venera/foundation/comic_source/comic_source.dart';
 import 'package:venera/foundation/comic_type.dart';
 import 'package:venera/foundation/favorites.dart';
+import 'package:venera/foundation/follow_updates.dart';
 
 FavoriteItem _favorite(String id) {
   return FavoriteItem(
@@ -25,6 +27,46 @@ bool _sqliteAvailable() {
     return true;
   } catch (_) {
     return false;
+  }
+}
+
+Future<void> _withFavoritesManager(
+  Future<void> Function(LocalFavoritesManager manager) run,
+) async {
+  final dataDir = Directory.systemTemp.createTempSync('venera-favorites-data-');
+  final cacheDir = Directory.systemTemp.createTempSync(
+    'venera-favorites-cache-',
+  );
+  final previousFollowUpdatesFolder = appdata.settings['followUpdatesFolder'];
+  final previousQuickFavorite = appdata.settings['quickFavorite'];
+  LocalFavoritesManager? manager;
+  try {
+    App.dataPath = dataDir.path;
+    App.cachePath = cacheDir.path;
+    LocalFavoritesManager.cache = null;
+
+    manager = LocalFavoritesManager();
+    await manager.init();
+    await run(manager);
+    await appdata.saveData(false);
+  } finally {
+    if (manager != null) {
+      await manager.debugWaitForHashedIdsRefresh();
+      try {
+        manager.close();
+      } catch (_) {
+        // ignore cleanup failures in partially initialized tests
+      }
+    }
+    LocalFavoritesManager.cache = null;
+    appdata.settings['followUpdatesFolder'] = previousFollowUpdatesFolder;
+    appdata.settings['quickFavorite'] = previousQuickFavorite;
+    if (dataDir.existsSync()) {
+      dataDir.deleteSync(recursive: true);
+    }
+    if (cacheDir.existsSync()) {
+      cacheDir.deleteSync(recursive: true);
+    }
   }
 }
 
@@ -229,6 +271,116 @@ void main() {
 
       manager.markAsRead(item.id, item.type, notify: false);
       expect(manager.hasNewUpdate(item.id, item.type), isFalse);
+    },
+    skip: _sqliteAvailable() ? false : 'sqlite3 native library is unavailable',
+  );
+
+  test(
+    'follow updates preview returns all comics in the tracking folder',
+    () async {
+      await _withFavoritesManager((manager) async {
+        const folder = LocalFavoritesManager.trackingFolderName;
+        final updated = _favorite('updated-preview');
+        final unchanged = _favorite('unchanged-preview');
+
+        manager.addComic(folder, updated, null, '2026-07-01');
+        manager.addComic(folder, unchanged, null, '2026-07-01');
+        manager.updateUpdateTime(
+          folder,
+          updated.id,
+          updated.type,
+          '2026-07-02',
+        );
+
+        final preview = getFollowUpdatesPreviewComics(folder);
+
+        expect(
+          preview.map((comic) => comic.id),
+          unorderedEquals([updated.id, unchanged.id]),
+        );
+        expect(preview.where((comic) => comic.hasNewUpdate), hasLength(1));
+        expect(manager.countUpdates(folder), 1);
+      });
+    },
+    skip: _sqliteAvailable() ? false : 'sqlite3 native library is unavailable',
+  );
+
+  test(
+    'delete and move operations clear cached follow update status',
+    () async {
+      await _withFavoritesManager((manager) async {
+        const folder = LocalFavoritesManager.trackingFolderName;
+        manager.createFolder('target');
+
+        void addUpdated(FavoriteItem item) {
+          manager.addComic(folder, item, null, '2026-07-01');
+          manager.updateUpdateTime(folder, item.id, item.type, '2026-07-02');
+          expect(manager.hasNewUpdate(item.id, item.type), isTrue);
+        }
+
+        final deleted = _favorite('delete-one');
+        addUpdated(deleted);
+        manager.deleteComicWithId(folder, deleted.id, deleted.type);
+        expect(manager.hasNewUpdate(deleted.id, deleted.type), isFalse);
+
+        final batchDeleted = _favorite('delete-batch');
+        addUpdated(batchDeleted);
+        manager.batchDeleteComics(folder, [batchDeleted]);
+        expect(
+          manager.hasNewUpdate(batchDeleted.id, batchDeleted.type),
+          isFalse,
+        );
+
+        final deletedEverywhere = _favorite('delete-everywhere');
+        addUpdated(deletedEverywhere);
+        manager.batchDeleteComicsInAllFolders([
+          ComicID(deletedEverywhere.type, deletedEverywhere.id),
+        ]);
+        expect(
+          manager.hasNewUpdate(deletedEverywhere.id, deletedEverywhere.type),
+          isFalse,
+        );
+
+        final moved = _favorite('move-one');
+        addUpdated(moved);
+        manager.moveFavorite(folder, 'target', moved.id, moved.type);
+        expect(manager.hasNewUpdate(moved.id, moved.type), isFalse);
+
+        final batchMoved = _favorite('move-batch');
+        addUpdated(batchMoved);
+        manager.batchMoveFavorites(folder, 'target', [batchMoved]);
+        expect(manager.hasNewUpdate(batchMoved.id, batchMoved.type), isFalse);
+      });
+    },
+    skip: _sqliteAvailable() ? false : 'sqlite3 native library is unavailable',
+  );
+
+  test(
+    'folder delete and rename refresh cached follow update status',
+    () async {
+      await _withFavoritesManager((manager) async {
+        const folder = LocalFavoritesManager.trackingFolderName;
+        final renamed = _favorite('rename-follow');
+
+        manager.addComic(folder, renamed, null, '2026-07-01');
+        manager.updateUpdateTime(
+          folder,
+          renamed.id,
+          renamed.type,
+          '2026-07-02',
+        );
+        expect(manager.hasNewUpdate(renamed.id, renamed.type), isTrue);
+
+        manager.rename(folder, 'renamed-follow');
+
+        expect(appdata.settings['followUpdatesFolder'], 'renamed-follow');
+        expect(manager.hasNewUpdate(renamed.id, renamed.type), isTrue);
+
+        manager.deleteFolder('renamed-follow');
+
+        expect(appdata.settings['followUpdatesFolder'], isNull);
+        expect(manager.hasNewUpdate(renamed.id, renamed.type), isFalse);
+      });
     },
     skip: _sqliteAvailable() ? false : 'sqlite3 native library is unavailable',
   );
