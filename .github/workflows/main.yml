@@ -289,6 +289,22 @@ jobs:
         with:
           name: deb_arm64_build
           path: outputs
+      - name: Generate Winget manifest
+        if: ${{ !contains(github.ref_name, '-') }}
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          python3 .github/scripts/generate_winget_manifest.py \
+            --version "$version" \
+            --installer "outputs/VeneraNext-${version}-windows-installer.exe" \
+            --release-date "$(date -u +%F)" \
+            --output outputs/winget \
+            --print-path
+      - uses: actions/upload-artifact@v5
+        if: ${{ !contains(github.ref_name, '-') }}
+        with:
+          name: winget_manifest
+          path: outputs/winget/manifests
+          if-no-files-found: error
       - uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.ref_name }}

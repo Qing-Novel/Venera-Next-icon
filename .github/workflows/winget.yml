@@ -1,0 +1,69 @@
+name: Prepare Winget Manifest
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Stable release tag, for example v1.10.2"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  manifest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Resolve release metadata
+        id: release
+        run: |
+          tag="${{ inputs.tag }}"
+          version="${tag#v}"
+          if [[ "$tag" != v* ]]; then
+            echo "::error::tag must start with v, got $tag"
+            exit 1
+          fi
+          if [[ "$version" == *-* ]]; then
+            echo "::error::winget manifests should only be prepared for stable releases"
+            exit 1
+          fi
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "url=https://github.com/CyrilPeng/venera-next/releases/download/$tag/VeneraNext-$version-windows-installer.exe" >> "$GITHUB_OUTPUT"
+      - name: Download Windows installer
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p dist
+          gh release download "${{ steps.release.outputs.tag }}" \
+            --pattern "VeneraNext-${{ steps.release.outputs.version }}-windows-installer.exe" \
+            --dir dist
+      - name: Generate Winget manifest
+        run: |
+          python3 .github/scripts/generate_winget_manifest.py \
+            --version "${{ steps.release.outputs.version }}" \
+            --installer "dist/VeneraNext-${{ steps.release.outputs.version }}-windows-installer.exe" \
+            --release-date "$(date -u +%F)" \
+            --output build/winget \
+            --print-path
+      - uses: actions/upload-artifact@v5
+        with:
+          name: winget_manifest
+          path: build/winget/manifests
+          if-no-files-found: error
+      - name: Summary
+        run: |
+          {
+            printf '## Winget Manifest\n\n'
+            printf 'The `winget_manifest` artifact contains the manifest files for:\n\n'
+            printf '```powershell\n'
+            printf 'winget install CyrilPeng.VeneraNext\n'
+            printf 'winget upgrade CyrilPeng.VeneraNext\n'
+            printf '```\n\n'
+            printf 'Submit the generated manifest folder to `microsoft/winget-pkgs`, or use WingetCreate after the package has an existing winget entry:\n\n'
+            printf '```powershell\n'
+            printf 'wingetcreate update CyrilPeng.VeneraNext -u "${{ steps.release.outputs.url }}" -v "${{ steps.release.outputs.version }}" -t <GitHub PAT> --submit\n'
+            printf '```\n'
+          } >> "$GITHUB_STEP_SUMMARY"

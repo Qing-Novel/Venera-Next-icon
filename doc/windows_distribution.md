@@ -1,0 +1,58 @@
+# Windows 分发
+
+## 发布产物
+
+Windows 正式发布由 `.github/workflows/main.yml` 构建：
+
+- `VeneraNext-<version>-windows-installer.exe`：Inno Setup 安装器，适合 winget。
+- `VeneraNext-<version>-windows.zip`：便携包，适合手动下载解压。
+
+winget 默认接入安装器，不接入便携包。用户通过 winget 安装后，可以使用：
+
+```powershell
+winget install CyrilPeng.VeneraNext
+winget upgrade CyrilPeng.VeneraNext
+```
+
+## 生成 winget manifest
+
+正式版 tag 发布时，主发布 workflow 会生成 `winget_manifest` 工件。也可以手动运行 `Prepare Winget Manifest` workflow，输入已存在的稳定版 tag，例如 `v1.10.2`。
+
+本地生成命令：
+
+```powershell
+python .github\scripts\generate_winget_manifest.py `
+  --version 1.10.2 `
+  --installer build\windows\VeneraNext-1.10.2-windows-installer.exe `
+  --output build\winget `
+  --print-path
+```
+
+生成目录遵循 winget-pkgs 结构：
+
+```text
+build/winget/manifests/c/CyrilPeng/VeneraNext/<version>/
+```
+
+## 提交到 winget-pkgs
+
+首次接入时，将生成目录提交到 `microsoft/winget-pkgs` 的对应路径并创建 PR。
+
+后续已有包条目后，可以使用 WingetCreate 更新：
+
+```powershell
+wingetcreate update CyrilPeng.VeneraNext `
+  -u https://github.com/CyrilPeng/venera-next/releases/download/v1.10.2/VeneraNext-1.10.2-windows-installer.exe `
+  -v 1.10.2 `
+  -t <GitHub PAT> `
+  --submit
+```
+
+不要为 `-rc` 预发布版本提交 winget manifest。winget 应只跟随正式稳定版。
+
+## 注意事项
+
+- `windows/build.iss` 中的 `AppId` 不要随意改动，它会影响 winget 对已安装应用的识别。
+- 安装器文件名必须保持 `VeneraNext-<version>-windows-installer.exe`，manifest 脚本会校验这个命名。
+- 如果以后增加 Windows ARM64 正式发布，需要给 winget installer manifest 增加 `arm64` installer 节点。
+- 代码签名不是当前脚本的前置条件，但正式进入 winget 后应优先补上，以减少 SmartScreen 和安装信任问题。
