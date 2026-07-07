@@ -7,6 +7,10 @@ import 'package:venera_next/foundation/app.dart';
 import 'package:venera_next/foundation/appdata.dart';
 
 void main() {
+  test('does not configure a comic source list by default', () {
+    expect(appdata.settings['comicSourceListUrl'], isEmpty);
+  });
+
   test(
     'saveData queues concurrent writes and keeps the latest snapshot',
     () async {

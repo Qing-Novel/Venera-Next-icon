@@ -245,7 +245,7 @@ class Settings with ChangeNotifier {
     'customImageProcessing': defaultCustomImageProcessing,
     'sni': true,
     'autoAddLanguageFilter': 'none', // none, chinese, english, japanese
-    'comicSourceListUrl': _defaultSourceListUrl,
+    'comicSourceListUrl': "",
     'preloadImageCount': 4,
     'followUpdatesFolder': null,
     'initialPage': '0',
@@ -394,6 +394,3 @@ async function processImage(image, cid, eid, page, sourceKey) {
     return futureImage;
 }
 ''';
-
-const _defaultSourceListUrl =
-    "https://cdn.jsdelivr.net/gh/venera-app/venera-configs@main/index.json";

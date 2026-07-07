@@ -72,6 +72,25 @@ void main() {
     expect(type.sourceKey, key);
     expect(type.comicSource, same(source));
   });
+
+  test('check source updates skips when source list url is empty', () async {
+    const key = 'comic_source_update_without_repo';
+    final manager = ComicSourceManager();
+    manager.remove(key);
+    final source = _source(key: key);
+    manager.add(source);
+    final previousListUrl = appdata.settings['comicSourceListUrl'];
+    appdata.settings['comicSourceListUrl'] = '';
+    addTearDown(() {
+      appdata.settings['comicSourceListUrl'] = previousListUrl;
+      manager.remove(key);
+    });
+
+    final count = await ComicSourcePage.checkComicSourceUpdate();
+
+    expect(count, 0);
+    expect(ComicSourceManager().availableUpdates, isEmpty);
+  });
 }
 
 ComicSource _source({String key = 'test'}) {

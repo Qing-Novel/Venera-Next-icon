@@ -85,8 +85,14 @@ class ComicSourcePage extends StatelessWidget {
     if (ComicSource.all().isEmpty) {
       return 0;
     }
+    final sourceListUrl = appdata.settings['comicSourceListUrl']
+        ?.toString()
+        .trim();
+    if (sourceListUrl == null || sourceListUrl.isEmpty) {
+      return 0;
+    }
     var dio = AppDio();
-    var res = await dio.get<String>(appdata.settings['comicSourceListUrl']);
+    var res = await dio.get<String>(sourceListUrl);
     if (res.statusCode != 200) {
       return -1;
     }
@@ -390,7 +396,7 @@ class _ComicSourceListState extends State<_ComicSourceList> {
   @override
   void initState() {
     super.initState();
-    controller.text = appdata.settings['comicSourceListUrl'];
+    controller.text = appdata.settings['comicSourceListUrl']?.toString() ?? "";
     load();
   }
 
@@ -492,8 +498,8 @@ class _ComicSourceListState extends State<_ComicSourceList> {
                   var fileName = json![index]["fileName"];
                   var url = json![index]["url"];
                   if (url == null || !(url.toString()).isURL) {
-                    var listUrl =
-                        appdata.settings['comicSourceListUrl'] as String;
+                    var listUrl = appdata.settings['comicSourceListUrl']
+                        .toString();
                     if (listUrl
                         .replaceFirst("https://", "")
                         .replaceFirst("http://", "")

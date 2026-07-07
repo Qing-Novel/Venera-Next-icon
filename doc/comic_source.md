@@ -9,19 +9,20 @@ VeneraNext uses [flutter_qjs](https://github.com/wgh136/flutter_qjs) as js engin
 
 This document will describe how to write a comic source for VeneraNext.
 
+## API Compatibility
+
+VeneraNext aims to stay compatible with the Venera JavaScript comic source API where practical.
+This compatibility only refers to the extension interface and runtime contract.
+It does not mean this repository provides, recommends, maintains, endorses, or verifies any third-party comic source, source list, source site, source content, or copyright status.
+
+Do not report issues about source repositories, source sites, specific works, missing chapters, image availability, or copyright to this repository.
+
 ## Comic Source List
 
 VeneraNext can display a list of comic sources in the app.
 
-You can use the following repo url:
-```
-https://cdn.jsdelivr.net/gh/venera-app/venera-configs@main/index.json
-```
-The repo is maintained by the upstream Venera project.
-
-> The link is a mirror of the original repo. To contribute your comic source, please visit the [original repo](https://github.com/venera-app/venera-configs)
-
-You should provide a repository url to let the app load the comic source list.
+VeneraNext does not provide, host, recommend, or maintain any comic source repository.
+If you need the app to display a source list, you should provide your own repository url.
 The url should point to a JSON file that contains the list of comic sources.
 
 The JSON file should have the following format:
@@ -47,7 +48,7 @@ The description field is optional.
 
 - Install VeneraNext. Using flutter to run the project is recommended since it's easier to debug.
 - An editor that supports javascript.
-- Download template and VeneraNext JavaScript API from [here](https://github.com/venera-app/venera-configs).
+- Read the JavaScript API document in this repository and create a local `.js` source file for testing.
 
 ### Start Writing
 
