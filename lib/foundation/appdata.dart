@@ -265,6 +265,8 @@ class Settings with ChangeNotifier {
     'showChapterComments': true, // show chapter comments in reader
     'showChapterCommentsAtEnd':
         false, // show chapter comments at end of chapter
+    'splitDualPage': false,
+    'splitDualPageInvert': false,
   };
 
   operator [](String key) {

@@ -1,3 +1,5 @@
+import 'dart:ui' as ui;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/scheduler.dart';
@@ -27,6 +29,8 @@ class ComicImage extends StatefulWidget {
     this.gaplessPlayback = false,
     this.filterQuality = FilterQuality.medium,
     this.isAntiAlias = false,
+    this.splitWideImage = false,
+    this.splitWideImageInvert = false,
     Map<String, String>? headers,
     int? cacheWidth,
     int? cacheHeight,
@@ -68,6 +72,10 @@ class ComicImage extends StatefulWidget {
 
   final bool isAntiAlias;
 
+  final bool splitWideImage;
+
+  final bool splitWideImageInvert;
+
   final void Function(State<ComicImage> state)? onInit;
 
   final void Function(State<ComicImage> state)? onDispose;
@@ -76,6 +84,30 @@ class ComicImage extends StatefulWidget {
 
   @override
   State<ComicImage> createState() => ComicImageState();
+}
+
+@visibleForTesting
+bool shouldSplitWideImage(Size imageSize) => imageSize.width > imageSize.height;
+
+@visibleForTesting
+Size splitWideImageDisplaySize(Size imageSize) {
+  if (!shouldSplitWideImage(imageSize)) {
+    return imageSize;
+  }
+  return Size(imageSize.width / 2, imageSize.height * 2);
+}
+
+@visibleForTesting
+List<Rect> splitWideImageSourceRects(Size imageSize, {required bool invert}) {
+  final halfWidth = imageSize.width / 2;
+  final left = Rect.fromLTWH(0, 0, halfWidth, imageSize.height);
+  final right = Rect.fromLTWH(
+    imageSize.width - halfWidth,
+    0,
+    halfWidth,
+    imageSize.height,
+  );
+  return invert ? [left, right] : [right, left];
 }
 
 class ComicImageState extends State<ComicImage> with WidgetsBindingObserver {
@@ -353,12 +385,15 @@ class ComicImageState extends State<ComicImage> with WidgetsBindingObserver {
 
         Size? cacheSize = _cache[widget.image.hashCode];
         if (cacheSize != null) {
+          final displaySize = widget.splitWideImage
+              ? splitWideImageDisplaySize(cacheSize)
+              : cacheSize;
           if (width == double.infinity) {
             width = constrains.maxWidth;
-            height = width * cacheSize.height / cacheSize.width;
+            height = width * displaySize.height / displaySize.width;
           } else if (height == double.infinity) {
             height = constrains.maxHeight;
-            width = height * cacheSize.width / cacheSize.height;
+            width = height * displaySize.width / displaySize.height;
           }
         } else {
           if (width == double.infinity) {
@@ -371,29 +406,51 @@ class ComicImageState extends State<ComicImage> with WidgetsBindingObserver {
         }
 
         if (_imageInfo != null) {
-          // build image
-          Widget result = RawImage(
-            // Do not clone the image, because RawImage is a stateless wrapper.
-            // The image will be disposed by this state object when it is not needed
-            // anymore, such as when it is unmounted or when the image stream pushes
-            // a new image.
-            image: _imageInfo?.image,
-            debugImageLabel: _imageInfo?.debugLabel,
-            width: width,
-            height: height,
-            scale: _imageInfo?.scale ?? 1.0,
-            color: widget.color,
-            opacity: widget.opacity,
-            colorBlendMode: widget.colorBlendMode,
-            fit: widget.fit,
-            alignment: widget.alignment,
-            repeat: widget.repeat,
-            centerSlice: widget.centerSlice,
-            matchTextDirection: widget.matchTextDirection,
-            invertColors: _invertColors,
-            isAntiAlias: widget.isAntiAlias,
-            filterQuality: widget.filterQuality,
+          final imageSize = Size(
+            _imageInfo!.image.width.toDouble(),
+            _imageInfo!.image.height.toDouble(),
           );
+          final shouldSplit =
+              widget.splitWideImage && shouldSplitWideImage(imageSize);
+          // build image
+          Widget result = shouldSplit
+              ? _SplitWideImage(
+                  image: _imageInfo!.image,
+                  width: width,
+                  height: height,
+                  color: widget.color,
+                  opacity: widget.opacity,
+                  colorBlendMode: widget.colorBlendMode,
+                  fit: widget.fit,
+                  alignment: widget.alignment,
+                  matchTextDirection: widget.matchTextDirection,
+                  invertColors: _invertColors,
+                  isAntiAlias: widget.isAntiAlias,
+                  filterQuality: widget.filterQuality,
+                  splitInvert: widget.splitWideImageInvert,
+                )
+              : RawImage(
+                  // Do not clone the image, because RawImage is a stateless wrapper.
+                  // The image will be disposed by this state object when it is not needed
+                  // anymore, such as when it is unmounted or when the image stream pushes
+                  // a new image.
+                  image: _imageInfo?.image,
+                  debugImageLabel: _imageInfo?.debugLabel,
+                  width: width,
+                  height: height,
+                  scale: _imageInfo?.scale ?? 1.0,
+                  color: widget.color,
+                  opacity: widget.opacity,
+                  colorBlendMode: widget.colorBlendMode,
+                  fit: widget.fit,
+                  alignment: widget.alignment,
+                  repeat: widget.repeat,
+                  centerSlice: widget.centerSlice,
+                  matchTextDirection: widget.matchTextDirection,
+                  invertColors: _invertColors,
+                  isAntiAlias: widget.isAntiAlias,
+                  filterQuality: widget.filterQuality,
+                );
 
           if (!widget.excludeFromSemantics) {
             result = Semantics(
@@ -452,5 +509,174 @@ class ComicImageState extends State<ComicImage> with WidgetsBindingObserver {
         _wasSynchronouslyLoaded,
       ),
     );
+  }
+}
+
+class _SplitWideImage extends StatelessWidget {
+  const _SplitWideImage({
+    required this.image,
+    required this.width,
+    required this.height,
+    required this.color,
+    required this.opacity,
+    required this.colorBlendMode,
+    required this.fit,
+    required this.alignment,
+    required this.matchTextDirection,
+    required this.invertColors,
+    required this.isAntiAlias,
+    required this.filterQuality,
+    required this.splitInvert,
+  });
+
+  final ui.Image image;
+
+  final double? width;
+
+  final double? height;
+
+  final Color? color;
+
+  final Animation<double>? opacity;
+
+  final BlendMode? colorBlendMode;
+
+  final BoxFit? fit;
+
+  final AlignmentGeometry alignment;
+
+  final bool matchTextDirection;
+
+  final bool invertColors;
+
+  final bool isAntiAlias;
+
+  final FilterQuality filterQuality;
+
+  final bool splitInvert;
+
+  @override
+  Widget build(BuildContext context) {
+    Widget result = CustomPaint(
+      size: Size(
+        width ?? image.width.toDouble() / 2,
+        height ?? image.height * 2,
+      ),
+      painter: _SplitWideImagePainter(
+        image: image,
+        color: color,
+        colorBlendMode: colorBlendMode,
+        fit: fit,
+        alignment: alignment.resolve(Directionality.maybeOf(context)),
+        matchTextDirection: matchTextDirection,
+        textDirection: Directionality.maybeOf(context),
+        invertColors: invertColors,
+        isAntiAlias: isAntiAlias,
+        filterQuality: filterQuality,
+        splitInvert: splitInvert,
+      ),
+    );
+    if (opacity != null) {
+      result = FadeTransition(opacity: opacity!, child: result);
+    }
+    return SizedBox(width: width, height: height, child: result);
+  }
+}
+
+class _SplitWideImagePainter extends CustomPainter {
+  const _SplitWideImagePainter({
+    required this.image,
+    required this.color,
+    required this.colorBlendMode,
+    required this.fit,
+    required this.alignment,
+    required this.matchTextDirection,
+    required this.textDirection,
+    required this.invertColors,
+    required this.isAntiAlias,
+    required this.filterQuality,
+    required this.splitInvert,
+  });
+
+  final ui.Image image;
+
+  final Color? color;
+
+  final BlendMode? colorBlendMode;
+
+  final BoxFit? fit;
+
+  final Alignment alignment;
+
+  final bool matchTextDirection;
+
+  final TextDirection? textDirection;
+
+  final bool invertColors;
+
+  final bool isAntiAlias;
+
+  final FilterQuality filterQuality;
+
+  final bool splitInvert;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (size.isEmpty) return;
+
+    final imageSize = Size(image.width.toDouble(), image.height.toDouble());
+    final displaySize = splitWideImageDisplaySize(imageSize);
+    final fitted = applyBoxFit(fit ?? BoxFit.scaleDown, displaySize, size);
+    final destination = alignment.inscribe(
+      fitted.destination,
+      Offset.zero & size,
+    );
+    final halfHeight = destination.height / 2;
+    final topDestination = Rect.fromLTWH(
+      destination.left,
+      destination.top,
+      destination.width,
+      halfHeight,
+    );
+    final bottomDestination = Rect.fromLTWH(
+      destination.left,
+      destination.top + halfHeight,
+      destination.width,
+      halfHeight,
+    );
+    final sources = splitWideImageSourceRects(
+      imageSize,
+      invert:
+          splitInvert ^
+          (matchTextDirection && textDirection == TextDirection.rtl),
+    );
+    final paint = Paint()
+      ..isAntiAlias = isAntiAlias
+      ..filterQuality = filterQuality
+      ..invertColors = invertColors;
+    if (color != null) {
+      paint.colorFilter = ColorFilter.mode(
+        color!,
+        colorBlendMode ?? BlendMode.srcIn,
+      );
+    }
+
+    canvas.drawImageRect(image, sources[0], topDestination, paint);
+    canvas.drawImageRect(image, sources[1], bottomDestination, paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant _SplitWideImagePainter oldDelegate) {
+    return oldDelegate.image != image ||
+        oldDelegate.color != color ||
+        oldDelegate.colorBlendMode != colorBlendMode ||
+        oldDelegate.fit != fit ||
+        oldDelegate.alignment != alignment ||
+        oldDelegate.matchTextDirection != matchTextDirection ||
+        oldDelegate.textDirection != textDirection ||
+        oldDelegate.invertColors != invertColors ||
+        oldDelegate.isAntiAlias != isAntiAlias ||
+        oldDelegate.filterQuality != filterQuality ||
+        oldDelegate.splitInvert != splitInvert;
   }
 }

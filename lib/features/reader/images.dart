@@ -755,6 +755,23 @@ class ContinuousModeState extends State<_ContinuousMode>
 
   bool get crossChapter => widget.crossChapter;
 
+  bool get _splitWideImages =>
+      reader.mode.isTopToBottom &&
+      appdata.settings.getReaderSetting(
+            reader.cid,
+            reader.type.sourceKey,
+            'splitDualPage',
+          ) ==
+          true;
+
+  bool get _splitWideImagesInvert =>
+      appdata.settings.getReaderSetting(
+        reader.cid,
+        reader.type.sourceKey,
+        'splitDualPageInvert',
+      ) ==
+      true;
+
   int get _flowImageCount =>
       crossChapter ? _waterfallFlow.imageCount : reader.maxPage;
 
@@ -1287,6 +1304,8 @@ class ContinuousModeState extends State<_ContinuousMode>
           width: width,
           height: height,
           fit: BoxFit.contain,
+          splitWideImage: _splitWideImages,
+          splitWideImageInvert: _splitWideImagesInvert,
           onInit: (state) => imageStates.add(state),
           onDispose: (state) => imageStates.remove(state),
         );

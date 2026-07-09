@@ -27,6 +27,37 @@ class ReaderSettings extends StatefulWidget {
 }
 
 class _ReaderSettingsState extends State<ReaderSettings> {
+  dynamic _readerSettingValue(
+    String settingKey, {
+    required bool isEnabledSpecificSettings,
+    required bool useDeviceSpecificSettings,
+  }) {
+    if (isEnabledSpecificSettings) {
+      return appdata.settings.getReaderSetting(
+        widget.comicId!,
+        widget.comicSource!,
+        settingKey,
+      );
+    }
+    if (useDeviceSpecificSettings) {
+      return appdata.settings.getDeviceReaderSetting(settingKey);
+    }
+    return appdata.settings[settingKey];
+  }
+
+  bool _isVerticalFlowMode({
+    required bool isEnabledSpecificSettings,
+    required bool useDeviceSpecificSettings,
+  }) {
+    final readerMode = _readerSettingValue(
+      'readerMode',
+      isEnabledSpecificSettings: isEnabledSpecificSettings,
+      useDeviceSpecificSettings: useDeviceSpecificSettings,
+    );
+    return readerMode == 'waterfallTopToBottom' ||
+        readerMode == 'continuousTopToBottom';
+  }
+
   bool _isChapterCommentsAtEndSupported() {
     String? readerMode;
     bool? showChapterComments;
@@ -358,6 +389,52 @@ class _ReaderSettingsState extends State<ReaderSettings> {
           comicSource: isEnabledSpecificSettings ? widget.comicSource : null,
           useDeviceSettings: useDeviceSpecificSettings,
         ).toSliver(),
+        SliverAnimatedVisibility(
+          visible: _isVerticalFlowMode(
+            isEnabledSpecificSettings: isEnabledSpecificSettings,
+            useDeviceSpecificSettings: useDeviceSpecificSettings,
+          ),
+          child: SwitchSetting(
+            title: 'Split dual pages'.tl,
+            subtitle:
+                'Only applies to Continuous and Waterfall (Top to Bottom) modes'
+                    .tl,
+            settingKey: 'splitDualPage',
+            onChanged: () {
+              setState(() {});
+              widget.onChanged?.call('splitDualPage');
+            },
+            comicId: isEnabledSpecificSettings ? widget.comicId : null,
+            comicSource: isEnabledSpecificSettings ? widget.comicSource : null,
+            useDeviceSettings: useDeviceSpecificSettings,
+          ),
+        ),
+        SliverAnimatedVisibility(
+          visible:
+              _isVerticalFlowMode(
+                isEnabledSpecificSettings: isEnabledSpecificSettings,
+                useDeviceSpecificSettings: useDeviceSpecificSettings,
+              ) &&
+              _readerSettingValue(
+                    'splitDualPage',
+                    isEnabledSpecificSettings: isEnabledSpecificSettings,
+                    useDeviceSpecificSettings: useDeviceSpecificSettings,
+                  ) ==
+                  true,
+          child: SwitchSetting(
+            title: 'Swap split dual page order'.tl,
+            subtitle:
+                'Turn this on when the split page order does not match the reading direction'
+                    .tl,
+            settingKey: 'splitDualPageInvert',
+            onChanged: () {
+              widget.onChanged?.call('splitDualPageInvert');
+            },
+            comicId: isEnabledSpecificSettings ? widget.comicId : null,
+            comicSource: isEnabledSpecificSettings ? widget.comicSource : null,
+            useDeviceSettings: useDeviceSpecificSettings,
+          ),
+        ),
         if (App.isAndroid)
           SwitchSetting(
             title: 'Turn page by volume keys'.tl,
