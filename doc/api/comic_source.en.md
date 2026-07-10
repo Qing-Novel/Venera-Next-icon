@@ -56,7 +56,7 @@ The template contains detailed comments and examples. You can refer to it when w
 
 Here is a brief introduction to the template:
 
-> Note: Javascript api document is [here](js_api.md).
+> Note: Javascript api document is [here](js.en.md).
 
 #### Write basic information
 

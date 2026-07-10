@@ -91,7 +91,7 @@ winget install CyrilPeng.VeneraNext
 winget upgrade CyrilPeng.VeneraNext
 ```
 
-Windows 安装器、便携包和 winget manifest 维护说明见 [doc/windows_distribution.md](doc/windows_distribution.md)。
+Windows 安装器、便携包和 winget manifest 维护说明见 [doc/distribution/windows.zh.md](doc/distribution/windows.zh.md)。
 
 ### Linux
 
@@ -237,6 +237,8 @@ iOS 可使用无签名构建：
 flutter pub get --enforce-lockfile
 flutter build ios --release --no-codesign
 ```
+
+更多开发、分发和实验文档见 [doc/README.md](doc/README.md)。
 
 ---
 
