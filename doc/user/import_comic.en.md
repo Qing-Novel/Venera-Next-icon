@@ -72,3 +72,22 @@ Currently, VeneraNext supports the following archive formats:
 - `.cb7`
 - `.zip`
 - `.7z`
+
+An archive may contain images directly, or it may contain one top-level folder.
+If the top-level folder contains chapter folders, VeneraNext imports those
+folders as chapters.
+
+```text
+Cat's Eye.cbz
+└── Cat's Eye
+    ├── cover.jpg
+    ├── Volume 01
+    │   ├── 001.jpg
+    │   └── 002.jpg
+    └── Volume 02
+        ├── 001.jpg
+        └── 002.jpg
+```
+
+If there is no `cover.[ext]` in the root folder, the first image from the first
+chapter is used as the cover.

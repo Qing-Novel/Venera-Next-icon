@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:venera_next/features/local_comics/import_export/import_export.dart';
+import 'package:venera_next/foundation/file_system.dart';
 
 void main() {
   group('CBZ compatibility helpers', () {
@@ -66,6 +67,77 @@ void main() {
         const plainPath = '/tmp/a.jpg';
 
         expect(CBZ.localFilePathFromImageUriForTesting(plainPath), plainPath);
+      },
+    );
+
+    test(
+      'inspectImportLayoutForTesting detects chapter folders under a root folder',
+      () {
+        final temp = Directory.systemTemp.createTempSync('cbz_layout_');
+        try {
+          final root = Directory(FilePath.join(temp.path, '猫之眼[北条司]'))
+            ..createSync();
+          File(FilePath.join(root.path, 'cover.jpg')).writeAsBytesSync([1]);
+          final chapter1 = Directory(FilePath.join(root.path, '第01卷'))
+            ..createSync();
+          final chapter2 = Directory(FilePath.join(root.path, '第02卷'))
+            ..createSync();
+          File(FilePath.join(chapter1.path, '002.jpg')).writeAsBytesSync([1]);
+          File(FilePath.join(chapter1.path, '001.jpg')).writeAsBytesSync([1]);
+          File(FilePath.join(chapter2.path, '001.jpg')).writeAsBytesSync([1]);
+
+          final layout = CBZ.inspectImportLayoutForTesting(temp);
+          final chapters = layout['chapters'] as Map<String, List<String>>;
+
+          expect(layout['root'], '猫之眼[北条司]');
+          expect(layout['cover'], 'cover.jpg');
+          expect(layout['useChapterDirectories'], isTrue);
+          expect(chapters.keys.toList(), ['第01卷', '第02卷']);
+          expect(chapters['第01卷'], ['001.jpg', '002.jpg']);
+        } finally {
+          temp.deleteSync(recursive: true);
+        }
+      },
+    );
+
+    test(
+      'inspectImportLayoutForTesting uses first chapter image as cover when needed',
+      () {
+        final temp = Directory.systemTemp.createTempSync('cbz_layout_');
+        try {
+          final root = Directory(FilePath.join(temp.path, 'Book'))
+            ..createSync();
+          final chapter = Directory(FilePath.join(root.path, 'Chapter 1'))
+            ..createSync();
+          File(FilePath.join(chapter.path, '001.png')).writeAsBytesSync([1]);
+
+          final layout = CBZ.inspectImportLayoutForTesting(temp);
+
+          expect(layout['cover'], '001.png');
+          expect(layout['useChapterDirectories'], isTrue);
+        } finally {
+          temp.deleteSync(recursive: true);
+        }
+      },
+    );
+
+    test(
+      'inspectImportLayoutForTesting keeps flat layout when root has pages',
+      () {
+        final temp = Directory.systemTemp.createTempSync('cbz_layout_');
+        try {
+          File(FilePath.join(temp.path, '001.jpg')).writeAsBytesSync([1]);
+          final chapter = Directory(FilePath.join(temp.path, 'Chapter 1'))
+            ..createSync();
+          File(FilePath.join(chapter.path, '001.jpg')).writeAsBytesSync([1]);
+
+          final layout = CBZ.inspectImportLayoutForTesting(temp);
+
+          expect(layout['rootImages'], ['001.jpg']);
+          expect(layout['useChapterDirectories'], isFalse);
+        } finally {
+          temp.deleteSync(recursive: true);
+        }
       },
     );
   });
