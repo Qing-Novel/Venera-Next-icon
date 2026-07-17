@@ -11,6 +11,7 @@ import 'package:venera_next/features/history/history.dart';
 import 'package:venera_next/features/local_comics/local_comics.dart';
 import 'package:venera_next/features/comic_source/comic_source.dart';
 import 'package:venera_next/features/settings/setting_components.dart';
+import 'package:venera_next/features/settings/webdav_connection_fields.dart';
 import 'package:venera_next/features/sync/sync.dart';
 import 'package:venera_next/features/webdav_library/webdav_library.dart';
 import 'package:venera_next/foundation/app.dart';
@@ -520,10 +521,7 @@ class _BackupWebdavSetting extends StatefulWidget {
 }
 
 class _BackupWebdavSettingState extends State<_BackupWebdavSetting> {
-  late final TextEditingController _urlController;
-  late final TextEditingController _userController;
-  late final TextEditingController _passController;
-  late final TextEditingController _remotePathController;
+  late final WebDavConnectionControllers _connectionControllers;
   bool syncEnabled = false;
   bool isTesting = false;
 
@@ -531,19 +529,18 @@ class _BackupWebdavSettingState extends State<_BackupWebdavSetting> {
   void initState() {
     super.initState();
     final config = BackupConfig.fromSettings();
-    _urlController = TextEditingController(text: config.url);
-    _userController = TextEditingController(text: config.user);
-    _passController = TextEditingController(text: config.pass);
-    _remotePathController = TextEditingController(text: config.remotePath);
+    _connectionControllers = WebDavConnectionControllers(
+      url: config.url,
+      user: config.user,
+      password: config.pass,
+      remotePath: config.remotePath,
+    );
     syncEnabled = appdata.settings['backupWebdavSyncEnabled'] == true;
   }
 
   @override
   void dispose() {
-    _urlController.dispose();
-    _userController.dispose();
-    _passController.dispose();
-    _remotePathController.dispose();
+    _connectionControllers.dispose();
     super.dispose();
   }
 
@@ -555,39 +552,9 @@ class _BackupWebdavSettingState extends State<_BackupWebdavSetting> {
         child: Column(
           children: [
             const SizedBox(height: 12),
-            TextField(
-              decoration: InputDecoration(
-                labelText: "URL",
-                hintText: "A valid WebDav directory URL".tl,
-                border: OutlineInputBorder(),
-              ),
-              controller: _urlController,
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              decoration: InputDecoration(
-                labelText: "Username".tl,
-                border: const OutlineInputBorder(),
-              ),
-              controller: _userController,
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              decoration: InputDecoration(
-                labelText: "Password".tl,
-                border: const OutlineInputBorder(),
-              ),
-              controller: _passController,
-              obscureText: true,
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              decoration: InputDecoration(
-                labelText: "Remote Path".tl,
-                hintText: "/venera_backup/",
-                border: const OutlineInputBorder(),
-              ),
-              controller: _remotePathController,
+            WebDavConnectionFields(
+              controllers: _connectionControllers,
+              remotePathHint: '/venera_backup/',
             ),
             const SizedBox(height: 16),
             Container(
@@ -658,10 +625,10 @@ class _BackupWebdavSettingState extends State<_BackupWebdavSetting> {
   }
 
   BackupConfig get currentConfig => BackupConfig(
-    url: _urlController.text,
-    user: _userController.text,
-    pass: _passController.text,
-    remotePath: _remotePathController.text,
+    url: _connectionControllers.url.text,
+    user: _connectionControllers.user.text,
+    pass: _connectionControllers.password.text,
+    remotePath: _connectionControllers.remotePath.text,
   );
 
   Future<void> testConnection() async {
@@ -722,28 +689,24 @@ class _WebDavComicLibrarySetting extends StatefulWidget {
 
 class _WebDavComicLibrarySettingState
     extends State<_WebDavComicLibrarySetting> {
-  late final TextEditingController _urlController;
-  late final TextEditingController _userController;
-  late final TextEditingController _passController;
-  late final TextEditingController _remotePathController;
+  late final WebDavConnectionControllers _connectionControllers;
   bool isTesting = false;
 
   @override
   void initState() {
     super.initState();
     final config = WebDavLibraryConfig.fromSettings();
-    _urlController = TextEditingController(text: config.url);
-    _userController = TextEditingController(text: config.user);
-    _passController = TextEditingController(text: config.pass);
-    _remotePathController = TextEditingController(text: config.remotePath);
+    _connectionControllers = WebDavConnectionControllers(
+      url: config.url,
+      user: config.user,
+      password: config.pass,
+      remotePath: config.remotePath,
+    );
   }
 
   @override
   void dispose() {
-    _urlController.dispose();
-    _userController.dispose();
-    _passController.dispose();
-    _remotePathController.dispose();
+    _connectionControllers.dispose();
     super.dispose();
   }
 
@@ -755,39 +718,9 @@ class _WebDavComicLibrarySettingState
         child: Column(
           children: [
             const SizedBox(height: 12),
-            TextField(
-              decoration: InputDecoration(
-                labelText: "URL",
-                hintText: "A valid WebDav directory URL".tl,
-                border: OutlineInputBorder(),
-              ),
-              controller: _urlController,
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              decoration: InputDecoration(
-                labelText: "Username".tl,
-                border: const OutlineInputBorder(),
-              ),
-              controller: _userController,
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              decoration: InputDecoration(
-                labelText: "Password".tl,
-                border: const OutlineInputBorder(),
-              ),
-              controller: _passController,
-              obscureText: true,
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              decoration: InputDecoration(
-                labelText: "Remote Path".tl,
-                hintText: "/venera_comics/",
-                border: const OutlineInputBorder(),
-              ),
-              controller: _remotePathController,
+            WebDavConnectionFields(
+              controllers: _connectionControllers,
+              remotePathHint: '/venera_comics/',
             ),
             const SizedBox(height: 16),
             Container(
@@ -840,10 +773,10 @@ class _WebDavComicLibrarySettingState
   }
 
   WebDavLibraryConfig get currentConfig => WebDavLibraryConfig(
-    url: _urlController.text,
-    user: _userController.text,
-    pass: _passController.text,
-    remotePath: _remotePathController.text,
+    url: _connectionControllers.url.text,
+    user: _connectionControllers.user.text,
+    pass: _connectionControllers.password.text,
+    remotePath: _connectionControllers.remotePath.text,
   );
 
   Future<void> testConnection() async {

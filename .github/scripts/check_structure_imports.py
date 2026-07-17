@@ -843,6 +843,10 @@ FEATURE_ENTRYPOINT_TARGETS = {
         "settings",
         "settings.dart",
     ),
+    _feature_path("settings", "webdav_connection_fields.dart"): _feature_path(
+        "settings",
+        "settings.dart",
+    ),
     _feature_path("sync", "app_data_transfer.dart"): _feature_path(
         "sync",
         "sync.dart",
