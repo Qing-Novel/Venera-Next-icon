@@ -333,48 +333,59 @@ class NaviPaneState extends State<NaviPane>
 
   Widget buildLeft() {
     final value = controller.value;
+    final topPadding = MediaQuery.paddingOf(context).top;
+    final dividerColor = Theme.of(context).colorScheme.outlineVariant;
     const paddingHorizontal = 12.0;
     return Material(
-      child: Container(
+      child: SizedBox(
         width:
             _kFoldedSideBarWidth +
             (_kSideBarWidth - _kFoldedSideBarWidth) * ((value - 2).clamp(0, 1)),
         height: double.infinity,
-        padding: const EdgeInsets.symmetric(horizontal: paddingHorizontal),
-        decoration: BoxDecoration(
-          border: Border(
-            right: BorderSide(
-              color: Theme.of(context).colorScheme.outlineVariant,
-              width: 1.0,
-            ),
-          ),
-        ),
-        child: Column(
+        child: Stack(
           children: [
-            const SizedBox(height: 16),
-            SizedBox(height: MediaQuery.of(context).padding.top),
-            ...List<Widget>.generate(
-              widget.paneItems.length,
-              (index) => _SideNaviWidget(
-                enabled: currentPage == index,
-                entry: widget.paneItems[index],
-                showTitle: value == 3,
-                onTap: () {
-                  updatePage(index);
-                },
-                key: ValueKey(index),
+            Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: paddingHorizontal,
+              ),
+              child: Column(
+                children: [
+                  const SizedBox(height: 16),
+                  SizedBox(height: topPadding),
+                  ...List<Widget>.generate(
+                    widget.paneItems.length,
+                    (index) => _SideNaviWidget(
+                      enabled: currentPage == index,
+                      entry: widget.paneItems[index],
+                      showTitle: value == 3,
+                      onTap: () {
+                        updatePage(index);
+                      },
+                      key: ValueKey(index),
+                    ),
+                  ),
+                  const Spacer(),
+                  ...List<Widget>.generate(
+                    widget.paneActions.length,
+                    (index) => _PaneActionWidget(
+                      entry: widget.paneActions[index],
+                      showTitle: value == 3,
+                      key: ValueKey(index + widget.paneItems.length),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                ],
               ),
             ),
-            const Spacer(),
-            ...List<Widget>.generate(
-              widget.paneActions.length,
-              (index) => _PaneActionWidget(
-                entry: widget.paneActions[index],
-                showTitle: value == 3,
-                key: ValueKey(index + widget.paneItems.length),
+            Positioned(
+              top: topPadding,
+              right: 0,
+              bottom: 0,
+              child: ColoredBox(
+                color: dividerColor,
+                child: const SizedBox(width: 1),
               ),
             ),
-            const SizedBox(height: 16),
           ],
         ),
       ),
