@@ -2,8 +2,13 @@
 
 ## Introduction
 
-VeneraNext supports importing comics from local files.
-However, the comic files must be in a specific format.
+VeneraNext can import comics from local directories, comic archives, PDF files,
+and image-based EPUB files. Imported content is normalized into the existing
+local image-comic layout so all reader modes, progress tracking, and split-spread
+features continue to work.
+
+Supported comic image extensions are `jpg`, `jpeg`, `jpe`, `png`, `webp`,
+`gif`, and `avif`.
 
 ## Restore Local Downloads
 
@@ -92,6 +97,38 @@ Cat's Eye.cbz
 If there is no `cover.[ext]` in the root folder, the first image from the first
 chapter is used as the cover.
 
+## PDF and Image-based EPUB
+
+Open `Local` -> `Import` and select either a PDF comic file or an image-based
+EPUB file. Both formats are converted into app-managed local image comics during
+import; the original document is not streamed by the reader.
+
+### PDF
+
+- Open `Local` -> `Import` -> `PDF comic files` to select one or more PDFs. Each file becomes a separate comic, and the destination favorites folder is selected once for the batch.
+- Files are converted sequentially. Progress includes the current file, its position in the batch, and its page count, so there is no need to select each volume separately.
+- Each successful comic is saved immediately. Duplicate selections and titles already in the local library are skipped. A damaged, password-protected, or unreadable file does not stop the remaining files; individual results are shown at the end.
+- Cancelling stops subsequent imports and cleans up the unfinished comic after the current file preparation or page operation finishes safely. Successfully imported comics are kept, and unprocessed files are not counted as failures.
+- Keep the app running during import. Continuing after the app exits or resuming across restarts is not supported. On Android, files that cannot be accessed directly are copied to temporary storage one at a time and released after processing.
+- Each PDF page is rendered to JPEG in order, and the first page is also used as the cover.
+- The result is a flat comic without chapters. Its title defaults to the PDF file name.
+- Pages are rendered at roughly three times their PDF point size with a 3000-pixel longest-edge limit to balance clarity, memory, and storage use.
+- Encrypted or password-protected PDF files are not currently supported.
+- Import creates a new image copy, so additional local storage is required.
+
+### Image-based EPUB
+
+- Fixed-layout EPUB files may use direct raster-image spine items or XHTML/SVG wrappers containing `img` or SVG `image` references.
+- Page order follows the EPUB spine. Title, author, and cover metadata are preserved when available.
+- Multiple valid navigation entries are preserved as chapters. Files without meaningful chapter navigation are imported as flat comics.
+- Original raster images are copied without recompression.
+- Text-based EPUB files, directly rendered SVG pages, external image references, and paths outside the EPUB root are rejected instead of silently dropping content.
+
+MOBI, AZW, and AZW3 are not supported. Convert them externally to an image-based
+EPUB, PDF, or CBZ before importing.
+
+Document import never overwrites an existing comic with the same title.
+
 ## WebDAV Online Library
 
 The WebDAV comic library is an online reading channel. It is separate from local import/export and WebDAV CBZ archive backup.
@@ -119,8 +156,34 @@ Plain directory rules:
 - The comic title defaults to the comic folder name.
 - Child directories are chapters. Root-level images can also form a single-chapter comic.
 - Pages and chapters are sorted by file name. Zero-padded names such as `0001.jpg` and `0002.jpg` are recommended.
-- The preferred cover is a root image whose base name is `cover`. Supported extensions are `jpg`, `jpeg`, `png`, `webp`, `gif`, and `jpe`. Without one, the app tries the first root page, then `cover.*` or the first page in the first readable chapter.
+- The preferred cover is a root image whose base name is `cover`. Supported extensions are `jpg`, `jpeg`, `png`, `webp`, `gif`, `jpe`, and `avif`. Without one, the app tries the first root page, then `cover.*` or the first page in the first readable chapter.
 - Neither `metadata.json` nor `ComicInfo.xml` is required.
+
+### Metadata-Marked Nested Layout
+
+For a deeply nested WebDAV library, place `metadata.json` in the comic root to explicitly mark that directory as one comic:
+
+```text
+/venera_comics/
+└── Category/
+    └── Author/
+        └── Cat's Eye/
+            ├── metadata.json
+            ├── cover.jpg
+            ├── Chapter 01/
+            │   ├── 001.jpg
+            │   └── 002.jpg
+            └── Chapter 02/
+                └── 001.jpg
+```
+
+During WebDAV synchronization, the app recursively searches for directories containing `metadata.json` and treats each marked directory as one comic. Its direct child directories become chapters. Once a comic root is found, the app does not expose its chapters or deeper directories as separate comics. Comic IDs use paths relative to the configured WebDAV library path, so same-named comics in different categories do not overwrite one another.
+
+In this mode, the title, author, and tags come from `metadata.json`, while chapter names and paths come from direct child directories. A root-level `cover.*` file is used only as the cover. Other root-level images are preserved in an `Images` chapter.
+
+When real chapter directories and `metadata.json` page ranges coexist, the real directory layout takes precedence; page ranges are not matched to directories by position. `chapters[].start` and `chapters[].end` are used for virtual chapters only when the root contains flat images and no chapter directories, which preserves the extracted CBZ layout.
+
+Recursive discovery is limited to directories with an explicit metadata marker. Complex multi-level layouts without metadata are not guessed indefinitely; add `metadata.json` at the comic root to prevent unrelated comics from being merged.
 
 ### Extracted CBZ Enhanced Mode
 

@@ -1,27 +1,57 @@
 <div align="center">
+  <strong>简体中文</strong> | <a href="README.en.md">English</a>
+  <br>
+  <br>
   <img src="assets/readme_logo.png" alt="VeneraNext" width="200" />
 
   # VeneraNext
 
-  ![Flutter](https://img.shields.io/badge/Flutter-3.41.4-02569B?logo=flutter&logoColor=white)
-  ![Dart](https://img.shields.io/badge/Dart-3.8+-0175C2?logo=dart&logoColor=white)
-  ![Platforms](https://img.shields.io/badge/Platforms-Android%20%7C%20iOS%20%7C%20Windows%20%7C%20Linux%20%7C%20macOS-7C3AED)
-  [![Release](https://img.shields.io/github/v/release/CyrilPeng/venera-next?label=Release&color=10B981)](https://github.com/CyrilPeng/venera-next/releases)
-  ![License](https://img.shields.io/badge/License-GPL--3.0-10B981)
+  ![Flutter](https://img.shields.io/badge/Flutter-3.41.4-02569B?logo=flutter&logoColor=white&style=flat-square)
+  [![Release](https://img.shields.io/github/v/release/CyrilPeng/venera-next?label=Release&color=10B981&style=flat-square)](https://github.com/CyrilPeng/venera-next/releases)
+  ![License](https://img.shields.io/badge/License-GPL--3.0-10B981?style=flat-square)
+  <br>
+  [![Downloads](https://img.shields.io/github/downloads/CyrilPeng/venera-next/total?style=flat-square&color=2ea44f&logo=github)](https://tooomm.github.io/github-release-stats/?user=CyrilPeng&repo=venera-next)
+  [![爱发电](https://img.shields.io/badge/爱发电-支持我-ff69b4?style=flat-square&logo=data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0id2hpdGUiPjxwYXRoIGQ9Ik0xMiAyMS4zNWwtMS40NS0xLjMyQzUuNCAxNS4zNiAyIDEyLjI4IDIgOC41IDIgNS40MiA0LjQyIDMgNy41IDNjMS43NCAwIDMuNDEuODEgNC41IDIuMDlDMTMuMDkgMy44MSAxNC43NiAzIDE2LjUgMyAxOS41OCAzIDIyIDUuNDIgMjIgOC41YzAgMy43OC0zLjQgNi44Ni04LjU1IDExLjU0TDEyIDIxLjM1eiIvPjwvc3ZnPg==)](https://ifdian.net/a/cyril)
 
 </div>
+
+<!-- featured-sponsors:start -->
+<!-- featured-sponsors:end -->
+
+---
+
+## 目录
+
+- [项目介绍](#项目介绍)
+- [功能亮点](#功能亮点)
+- [下载安装](#下载安装)
+- [快速上手](#快速上手)
+- [使用说明](#使用说明)
+- [FAQ](#faq)
+- [开发者入口](#开发者入口)
+- [声明](#声明)
+- [赞助](#赞助)
+- [许可](#许可)
 
 ---
 
 ## 项目介绍
 
-VeneraNext 是一个基于 Flutter 框架开发的跨平台漫画阅读器，支持本地漫画和网络漫画源，支持 Android、iOS、Windows、Linux、macOS 平台。
+[VeneraNext](https://github.com/CyrilPeng/venera-next) 是一个基于 Flutter 框架开发的跨平台漫画阅读器，支持本地漫画和网络漫画源，支持 Android、iOS、Windows、Linux、macOS 平台。
 
-本项目是 [venera](https://github.com/venera-app/venera) 的 fork 分支，当前维护仓库为 [CyrilPeng/venera-next](https://github.com/CyrilPeng/venera-next)。本分支会根据个人使用习惯调整阅读、收藏、本地管理、同步和发布体验。维护方向会比较主观，但欢迎提 issue 或 PR。
+本项目是 [Venera](https://github.com/venera-app/venera) 的 fork 分支，定位是面向个人日常使用的漫画阅读器，核心理念是尽量减少打断阅读的动作。
 
-VeneraNext 的定位是偏日常使用的漫画阅读器：打开漫画后尽量少打断阅读，长篇作品可以用瀑布流跨章节连续阅读，也可以把常看的作品收藏、追更、离线下载，并通过 WebDAV 在多台设备之间同步常用数据。
+长篇作品可以用瀑布流跨章节连续阅读，也可以把常看的作品收藏、追更、离线下载，并通过 WebDAV 在多台设备之间同步常用数据。
 
-**重要声明**：本仓库只维护 VeneraNext 漫画阅读器本体，不提供、内置、托管或推荐任何漫画源，也不处理任何源站内容。网络阅读能力兼容 JavaScript 扩展 API，并依赖用户自行合法配置的漫画源扩展；搜索结果、章节加载、图片可用性和内容版权均取决于对应源站与扩展实现。请不要在本仓库提交与漫画源、源站内容、具体作品可用性或版权相关的问题。
+> [!IMPORTANT]
+> **重要声明**：本仓库只维护漫画阅读器本体，不提供、内置、托管或推荐任何漫画源。漫画源需要由用户自行合法配置，请不要在本仓库反馈源站内容、具体作品可用性或漫画源本身的问题。
+
+<div align="center">
+  <a href="https://github.com/CyrilPeng/Venera-Next">
+    <img alt="GitHub 主仓库" src="https://img.shields.io/badge/GitHub-主仓库-181717?style=for-the-badge&logo=github&logoColor=white" /></a>
+  <a href="https://gitee.com/CyrilPeng/venera-next">
+    <img alt="Gitee 国内镜像" src="https://img.shields.io/badge/Gitee-国内镜像-C71D23?style=for-the-badge&logo=gitee&logoColor=white" /></a>
+</div>
 
 ---
 
@@ -32,23 +62,21 @@ VeneraNext 的定位是偏日常使用的漫画阅读器：打开漫画后尽量
 - **瀑布流跨章节阅读**：默认阅读模式。阅读到章节末尾附近时会自动预加载下一章，适合长篇连载和整卷连续阅读。
 - **纵向模式拆分双页**：纵向连续和瀑布流模式可将横向双页图拆成上下排列，并支持交换拆分顺序，适合右翻、左翻方向不同的作品。
 - **章节排序偏好**：漫画详情页的正序、倒序切换使用分段控件，状态会作为全局偏好保存，减少每次打开都要重新调整的操作。
-- **本地漫画和远端目录并重**：本地漫画支持目录、CBZ/ZIP/7Z 导入；WebDAV 漫画库支持普通图片目录，以及 VeneraNext 导出 CBZ 的解压目录在线阅读。
-- **源与阅读器分离**：本仓库只维护阅读器本体。网络漫画源由用户自行合法配置，仓库不会内置、推荐或维护具体源站。
+- **阅读时长统计**：按漫画累计前台有效阅读时长，并在历史页集中展示总时长、阅读最久漫画和时长排行。
+- **本地漫画和远端目录并重**：本地漫画支持目录、CBZ/ZIP/7Z、PDF 和图片型 EPUB 导入；WebDAV 漫画库支持普通图片目录，以及 VeneraNext 导出 CBZ 的解压目录在线阅读。
 
 ### 漫画来源
 
-- **本地漫画**：适合阅读设备上已有的图片目录或压缩包。支持单本目录、批量目录、CBZ、ZIP、7Z、CB7 导入。
+- **本地漫画**：适合阅读设备上已有的图片目录、压缩包或图片文档。支持单本目录、批量目录、CBZ、ZIP、7Z、CB7、PDF 和图片型 EPUB 导入。
 - **网络漫画源**：兼容 JavaScript 扩展 API。添加扩展后，可使用搜索、分类、排行、探索页、收藏和下载等能力。
 - **WebDAV 漫画库**：把 WebDAV 服务端作为在线漫画库读取，适合 NAS、Nextcloud、坚果云等场景；支持普通图片目录和 CBZ 解压后的增强目录，不在线预览压缩包本身。
 - **下载内容**：网络源章节可以下载到本地漫画库，适合移动端离线阅读或网络不稳定时使用。
 
 ### 管理与同步
 
-- 收藏管理、阅读历史、图片收藏、下载队列和追更。
+- 收藏管理、阅读历史与时长统计、图片收藏、下载队列和追更。
 - 本地漫画导入、导出、扫描恢复、章节删除和存储路径迁移。
-- WebDAV 数据同步：同步设置、收藏、历史、Cookie、漫画源文件等应用数据。
-- WebDAV 漫画归档：把本地漫画导出为 CBZ 后上传、恢复或删除，适合备份和迁移。
-- WebDAV 漫画库：直接读取远端目录图片，适合在线阅读，不要求先下载完整漫画。
+- WebDAV：数据同步、漫画归档（CBZ 备份/恢复）和在线漫画库，详见[使用说明](#webdav-数据同步和漫画归档)。
 
 ### 跨平台
 
@@ -105,7 +133,7 @@ Windows 安装器、便携包和 winget manifest 维护说明见 [doc/distributi
 
 1. 从 [Releases](https://github.com/CyrilPeng/venera-next/releases) 下载适合当前平台的安装包。
 2. 先选择漫画来源：
-   - 已经有图片目录或 CBZ 文件：进入 `本地` -> `导入`。
+   - 已经有图片目录、漫画压缩包、PDF 或图片型 EPUB：进入 `本地` -> `导入`。
    - 使用网络漫画源：进入漫画源管理，添加兼容 JavaScript 扩展 API 的扩展。
    - 使用 NAS/WebDAV 在线阅读：进入 `设置` -> `应用` -> `WebDAV Comic Library` 配置远端目录。
 3. 在 `设置` -> `阅读器` 中选择阅读模式。长篇作品推荐瀑布流；希望传统翻页时选择画廊；希望只在当前章节内纵向阅读时选择连续模式。
@@ -174,6 +202,15 @@ Windows 安装器、便携包和 winget manifest 维护说明见 [doc/distributi
 
 - 如果压缩包很大，导入需要先解压和复制到本地漫画库，因此更适合“下载后阅读”或“分发迁移”，不适合作为在线流式阅读格式。
 - 已导入的本地漫画可以导出为 CBZ，便于备份或在设备之间移动。
+
+### PDF 与图片型 EPUB 导入
+
+- PDF 支持一次选择多本并依次导入，显示文件和页数进度；可安全取消，已完成的漫画会保留，同名或重复文件会跳过，单本失败不会中断整批任务。
+- PDF 会在导入时逐页渲染为本地 JPEG 图片，第一页作为封面；导入结果为无章节漫画。
+- 图片型 EPUB 会按 spine 顺序提取栅格图片，并尽量保留标题、作者、封面和有效章节导航；原图不会重新压缩。
+- 文字型 EPUB、直接绘制的 SVG 页面、加密 PDF，以及 MOBI/AZW/AZW3 暂不支持。
+- PDF/EPUB 导入后会占用额外本地存储，阅读器读取的是转换后的图片，不会继续依赖原文件。
+- 完整兼容规则见 [本地漫画导入文档](doc/user/import_comic.zh.md#pdf-与图片型-epub)。
 
 ### 网络漫画源
 
@@ -263,11 +300,7 @@ VeneraNext 有三类 WebDAV 能力，配置入口和用途不同：
 
 通常与漫画源扩展、源站状态、网络环境或代理设置有关。请先检查对应漫画源是否仍可用，以及当前设备是否能正常访问对应站点。
 
-### 4. 瀑布流、画廊、连续模式怎么选？
-
-长篇连续阅读推荐瀑布流；习惯传统翻页阅读可以使用画廊；只想在当前章节内纵向阅读、并保留明确章节边界时，可以使用连续模式。
-
-### 5. Windows 能不能一键更新？
+### 4. Windows 能不能一键更新？
 
 可以。推荐使用 winget 安装和升级：
 
@@ -285,6 +318,9 @@ winget upgrade --id CyrilPeng.VeneraNext --exact
 README 面向安装和使用。构建、测试、仓库结构与发布维护说明统一放在开发文档中：
 
 - [构建与开发](doc/development/build.zh.md) / [Build and Development](doc/development/build.en.md)
+- [贡献指南](CONTRIBUTING.md) / [Contributing](CONTRIBUTING.en.md)
+- [依赖治理](doc/development/dependencies.zh.md)
+- [安全政策](SECURITY.md) / [行为准则](CODE_OF_CONDUCT.md)
 - [项目结构约定](doc/architecture/project_structure.zh.md)
 - [Windows 分发维护](doc/distribution/windows.zh.md)
 - [完整文档索引](doc/README.md)
@@ -293,13 +329,36 @@ README 面向安装和使用。构建、测试、仓库结构与发布维护说�
 
 ## 星标历史
 
-<a href="https://www.star-history.com/?repos=CyrilPeng%2Fvenera-next&type=date&legend=top-left">
+<a href="https://www.star-history.com/?repos=CyrilPeng%2FVenera-Next&type=date&legend=top-left">
  <picture>
-   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=CyrilPeng/venera-next&type=date&theme=dark&legend=top-left&sealed_token=2JdfPV5RItrAVJNxNXhSHVr6mVbj9H_y_YMHJio2smj8uoRHGQKgrtY9k0PmbxUf6q0P-dR90ZWZSKlDDaygMd90LT7F0xI-2Bbtiq5muew1iXUSEFJzfouyqu70BiWT-hUeD9BKbFsdVr1knEJDWBqAArkJYIJcJCOYLZ5rUdpFdQ2aBIhT8wTQnOED" />
-   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=CyrilPeng/venera-next&type=date&legend=top-left&sealed_token=2JdfPV5RItrAVJNxNXhSHVr6mVbj9H_y_YMHJio2smj8uoRHGQKgrtY9k0PmbxUf6q0P-dR90ZWZSKlDDaygMd90LT7F0xI-2Bbtiq5muew1iXUSEFJzfouyqu70BiWT-hUeD9BKbFsdVr1knEJDWBqAArkJYIJcJCOYLZ5rUdpFdQ2aBIhT8wTQnOED" />
-   <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=CyrilPeng/venera-next&type=date&legend=top-left&sealed_token=2JdfPV5RItrAVJNxNXhSHVr6mVbj9H_y_YMHJio2smj8uoRHGQKgrtY9k0PmbxUf6q0P-dR90ZWZSKlDDaygMd90LT7F0xI-2Bbtiq5muew1iXUSEFJzfouyqu70BiWT-hUeD9BKbFsdVr1knEJDWBqAArkJYIJcJCOYLZ5rUdpFdQ2aBIhT8wTQnOED" />
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=CyrilPeng/Venera-Next&type=date&theme=dark&legend=top-left&sealed_token=oOpEg16aOzfNd-LxRdnNlKMFvVT7R4hxnX3R0_siwlG1kcvQby3KmHFNPHaH-dbuficb1pbCiQyzTRFVYt2oKGGfjghUgiIs1huNy1yZ1ffelz7owlDrYQ" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=CyrilPeng/Venera-Next&type=date&legend=top-left&sealed_token=oOpEg16aOzfNd-LxRdnNlKMFvVT7R4hxnX3R0_siwlG1kcvQby3KmHFNPHaH-dbuficb1pbCiQyzTRFVYt2oKGGfjghUgiIs1huNy1yZ1ffelz7owlDrYQ" />
+   <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=CyrilPeng/Venera-Next&type=date&legend=top-left&sealed_token=oOpEg16aOzfNd-LxRdnNlKMFvVT7R4hxnX3R0_siwlG1kcvQby3KmHFNPHaH-dbuficb1pbCiQyzTRFVYt2oKGGfjghUgiIs1huNy1yZ1ffelz7owlDrYQ" />
  </picture>
 </a>
+
+---
+
+## 声明
+
+
+本仓库只维护 VeneraNext 漫画阅读器本体，**不提供、内置、托管或推荐任何漫画源，也不处理任何源站内容**。
+
+网络阅读能力兼容 JavaScript 扩展 API，需要用户自行配置合法的漫画源扩展；搜索结果、章节加载、图片可用性和内容版权均取决于对应源站与扩展实现。
+
+**请不要在本仓库提交与漫画源、源站内容、具体作品可用性或版权相关的问题，此类反馈会直接关闭。**
+
+---
+
+## 赞助
+
+[![爱发电](https://img.shields.io/badge/爱发电-支持我-ff69b4?style=for-the-badge&logo=data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0id2hpdGUiPjxwYXRoIGQ9Ik0xMiAyMS4zNWwtMS40NS0xLjMyQzUuNCAxNS4zNiAyIDEyLjI4IDIgOC41IDIgNS40MiA0LjQyIDMgNy41IDNjMS43NCAwIDMuNDEuODEgNC41IDIuMDlDMTMuMDkgMy44MSAxNC43NiAzIDE2LjUgMyAxOS41OCAzIDIyIDUuNDIgMjIgOC41YzAgMy43OC0zLjQgNi44Ni04LjU1IDExLjU0TDEyIDIxLjM1eiIvPjwvc3ZnPg==)](https://ifdian.net/a/cyril)
+
+本项目为个人兴趣维护，不以盈利为目的。如果 VeneraNext 对你的日常阅读有帮助，欢迎在[爱发电](https://ifdian.net/a/cyril)上支持作者的持续维护。
+
+赞助状态会通过爱发电 API 定期同步。需要公开鸣谢时，请在订单备注中填写“公开昵称：你的昵称”；未提供公开昵称的订单不会展示。
+
+赞助者名单见 [SPONSORS.md](SPONSORS.md)。
 
 ---
 

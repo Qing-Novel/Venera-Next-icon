@@ -123,6 +123,9 @@ InstallerSwitches:
   Silent: /VERYSILENT /SUPPRESSMSGBOXES /NORESTART
   SilentWithProgress: /SILENT /SUPPRESSMSGBOXES /NORESTART
   Custom: /NORESTART
+Dependencies:
+  PackageDependencies:
+  - PackageIdentifier: Microsoft.VCRedist.2015+.x64
 AppsAndFeaturesEntries:
 - DisplayName: {PACKAGE_NAME}
   Publisher: {PACKAGE_PUBLISHER}

@@ -5,6 +5,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:venera_next/foundation/app.dart';
+import 'package:venera_next/foundation/consts.dart';
 import 'package:venera_next/foundation/context.dart';
 import 'package:venera_next/foundation/widget_utils.dart';
 import 'package:window_manager/window_manager.dart';
@@ -130,23 +131,15 @@ class _WindowFrameState extends State<WindowFrame> {
                             ).paddingRight(52)
                           else
                             const SizedBox(width: 12),
+                          const SizedBox(width: 12),
                           Expanded(
                             child: DragToMoveArea(
-                              child:
-                                  Text(
-                                        'VeneraNext',
-                                        style: TextStyle(
-                                          fontSize: 13,
-                                          color:
-                                              (useDarkTheme ||
-                                                  context.brightness ==
-                                                      Brightness.dark)
-                                              ? Colors.white
-                                              : Colors.black,
-                                        ),
-                                      )
-                                      .toAlign(Alignment.centerLeft)
-                                      .paddingLeft(4 + (App.isMacOS ? 25 : 0)),
+                              child: _WindowBrand(
+                                showTitle: context.width >= changePoint2,
+                                dark:
+                                    useDarkTheme ||
+                                    context.brightness == Brightness.dark,
+                              ),
                             ),
                           ),
                           if (kDebugMode && widget.debugAction != null)
@@ -176,6 +169,50 @@ class _WindowFrameState extends State<WindowFrame> {
       addCloseListener: addCloseListener,
       removeCloseListener: removeCloseListener,
       child: body,
+    );
+  }
+}
+
+class _WindowBrand extends StatelessWidget {
+  const _WindowBrand({required this.showTitle, required this.dark});
+
+  final bool showTitle;
+  final bool dark;
+
+  @override
+  Widget build(BuildContext context) {
+    final foreground = dark ? Colors.white : Colors.black;
+    final title = Text(
+      'VeneraNext',
+      style: TextStyle(fontSize: 13, color: foreground),
+      overflow: TextOverflow.ellipsis,
+      maxLines: 1,
+    );
+    final logo = Image.asset(
+      'assets/app_icon.png',
+      width: 24,
+      height: 24,
+      filterQuality: FilterQuality.medium,
+    );
+
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: Semantics(
+        label: 'VeneraNext',
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minWidth: 32),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              logo,
+              if (showTitle) ...[
+                const SizedBox(width: 8),
+                Flexible(child: title),
+              ],
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

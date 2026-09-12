@@ -50,6 +50,35 @@ def validate_flutter_rust_bridge_lock() -> None:
         fail("pubspec.lock must lock flutter_rust_bridge as direct overridden version 2.11.1")
 
 
+def validate_windows_installer_metadata() -> None:
+    expected = "UninstallDisplayName={#MyAppName}"
+    for path in ("windows/build.iss", "windows/build_arm64.iss"):
+        text = read_text(path)
+        if expected not in text.splitlines():
+            fail(f"{path} must set {expected} so Windows shows a stable app name")
+        section = ""
+        launch_entries = 0
+        for line in text.splitlines():
+            line = line.strip()
+            if not line or line.startswith(";"):
+                continue
+            if line.startswith("[") and line.endswith("]"):
+                section = line.lower()
+                continue
+            if section != "[run]" or not re.match(
+                r'^Filename:\s*"\{app\}\\\{#MyAppExeName\}"\s*;', line, re.IGNORECASE
+            ):
+                continue
+            launch_entries += 1
+            flags = re.search(r"(?:^|;)\s*Flags:\s*([^;]+)", line, re.IGNORECASE)
+            if flags is None or not {"nowait", "postinstall", "skipifsilent"}.issubset(
+                flags.group(1).lower().split()
+            ):
+                fail(f"{path} must skip launching the app during silent installation")
+        if launch_entries != 1:
+            fail(f"{path} must contain exactly one post-install app launch entry")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--tag", default=os.environ.get("GITHUB_REF_NAME", ""))
@@ -62,6 +91,7 @@ def main() -> None:
 
     validate_pubspec_version(tag)
     validate_flutter_rust_bridge_lock()
+    validate_windows_installer_metadata()
     notes = extract_release_notes(tag)
 
     if args.write_notes:

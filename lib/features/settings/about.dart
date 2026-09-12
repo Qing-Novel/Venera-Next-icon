@@ -8,13 +8,13 @@ import 'package:venera_next/components/button.dart';
 import 'package:venera_next/components/message.dart';
 import 'package:venera_next/components/scroll.dart';
 import 'package:venera_next/features/settings/setting_components.dart';
+import 'package:venera_next/features/settings/sponsors.dart';
 import 'package:venera_next/foundation/app.dart';
 import 'package:venera_next/foundation/context.dart';
 import 'package:venera_next/foundation/log.dart';
 import 'package:venera_next/foundation/translations.dart';
 import 'package:venera_next/foundation/widget_utils.dart';
 import 'package:venera_next/network/app_dio.dart';
-import 'package:yaml/yaml.dart';
 
 class AboutSettings extends StatefulWidget {
   const AboutSettings({super.key});
@@ -92,6 +92,13 @@ class _AboutSettingsState extends State<AboutSettings> {
           trailing: const Icon(Icons.open_in_new),
           onTap: () {
             launchUrlString("https://github.com/CyrilPeng/venera-next");
+          },
+        ).toSliver(),
+        ListTile(
+          title: Text("Sponsors".tl),
+          trailing: const Icon(Icons.keyboard_arrow_right),
+          onTap: () {
+            context.to(() => const SponsorsPage());
           },
         ).toSliver(),
       ],
@@ -280,13 +287,14 @@ class _ChangelogMarkdownBlock extends StatelessWidget {
 }
 
 Future<String?> checkUpdate() async {
-  var versions = await Future.wait([
-    _fetchUpdateVersion(_fetchPubspecVersion, "Update Pubspec"),
-    _fetchUpdateVersion(_fetchLatestReleaseVersion, "Latest Release"),
-  ]);
-  var remoteVersion = selectUpdateVersionForTesting(versions, App.version);
+  final currentVersion = App.version;
+  final includePrerelease = allowsPrereleaseUpdatesForTesting(currentVersion);
+  var remoteVersion = await _fetchUpdateVersion(
+    () => _fetchLatestReleaseVersion(includePrerelease: includePrerelease),
+    "Latest Release",
+  );
   if (remoteVersion == null) return null;
-  return shouldNotifyUpdateForTesting(remoteVersion, App.version)
+  return shouldNotifyUpdateForTesting(remoteVersion, currentVersion)
       ? remoteVersion
       : null;
 }
@@ -303,29 +311,20 @@ Future<String?> _fetchUpdateVersion(
   }
 }
 
-Future<String?> _fetchLatestReleaseVersion() async {
+Future<String?> _fetchLatestReleaseVersion({
+  required bool includePrerelease,
+}) async {
   var res = await AppDio().get(
-    "https://api.github.com/repos/CyrilPeng/venera-next/releases/latest",
+    includePrerelease
+        ? "https://api.github.com/repos/CyrilPeng/venera-next/releases?per_page=20"
+        : "https://api.github.com/repos/CyrilPeng/venera-next/releases/latest",
   );
   if (res.statusCode == 200) {
     var data = res.data is String ? jsonDecode(res.data) : res.data;
-    var tag = data["tag_name"]?.toString();
-    if (tag != null) {
-      return tag.startsWith('v') ? tag.substring(1) : tag;
-    }
-  }
-  return null;
-}
-
-Future<String?> _fetchPubspecVersion() async {
-  var res = await AppDio().get(
-    "https://cdn.jsdelivr.net/gh/CyrilPeng/venera-next@main/pubspec.yaml",
-  );
-  if (res.statusCode == 200) {
-    var data = loadYaml(res.data);
-    if (data["version"] != null) {
-      return data["version"].toString().split('+').first;
-    }
+    return selectPublishedReleaseVersionForTesting(
+      data,
+      includePrerelease: includePrerelease,
+    );
   }
   return null;
 }
@@ -413,6 +412,30 @@ bool shouldNotifyUpdateForTesting(String remoteVersion, String currentVersion) {
 
 bool _canNotifyChannel(String remoteVersion, String currentVersion) {
   return !_isPrerelease(remoteVersion) || _isPrerelease(currentVersion);
+}
+
+@visibleForTesting
+bool allowsPrereleaseUpdatesForTesting(String currentVersion) {
+  return _isPrerelease(currentVersion);
+}
+
+@visibleForTesting
+String? selectPublishedReleaseVersionForTesting(
+  Object? response, {
+  required bool includePrerelease,
+}) {
+  final releases = response is List ? response : [response];
+  return releases
+      .whereType<Map>()
+      .where((release) => release["draft"] != true)
+      .where((release) => includePrerelease || release["prerelease"] != true)
+      .map((release) => release["tag_name"]?.toString())
+      .whereType<String>()
+      .map((tag) => tag.replaceFirst(RegExp(r'^[vV]'), ''))
+      .fold<String?>(null, (latest, version) {
+        if (latest == null) return version;
+        return _compareVersion(version, latest) ? version : latest;
+      });
 }
 
 bool _isPrerelease(String version) => _prerelease(version) != null;

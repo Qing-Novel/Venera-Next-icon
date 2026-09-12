@@ -10,8 +10,6 @@ import 'package:venera_next/components/menu.dart';
 import 'package:venera_next/components/message.dart';
 import 'package:venera_next/components/scroll.dart';
 import 'package:venera_next/features/comic_source/comic_source.dart';
-import 'package:venera_next/features/favorites/favorites.dart';
-import 'package:venera_next/features/history/history.dart';
 import 'package:venera_next/foundation/app.dart';
 import 'package:venera_next/foundation/appdata.dart';
 import 'package:venera_next/foundation/context.dart';
@@ -32,6 +30,7 @@ class SliverGridComics extends StatefulWidget {
     this.onTap,
     this.onLongPressed,
     this.selections,
+    this.useFavoriteDisplaySettings = false,
   });
 
   final List<Comic> comics;
@@ -47,6 +46,8 @@ class SliverGridComics extends StatefulWidget {
   final void Function(Comic, int heroID)? onTap;
 
   final void Function(Comic, int heroID)? onLongPressed;
+
+  final bool useFavoriteDisplaySettings;
 
   @override
   State<SliverGridComics> createState() => _SliverGridComicsState();
@@ -67,6 +68,14 @@ class _SliverGridComicsState extends State<SliverGridComics> {
 
   @override
   void didUpdateWidget(covariant SliverGridComics oldWidget) {
+    if (oldWidget.useFavoriteDisplaySettings !=
+        widget.useFavoriteDisplaySettings) {
+      if (widget.useFavoriteDisplaySettings) {
+        appdata.settings.addListener(_onSettingsChanged);
+      } else {
+        appdata.settings.removeListener(_onSettingsChanged);
+      }
+    }
     if (!comics.isEqualTo(widget.comics)) {
       comics.clear();
       for (var comic in widget.comics) {
@@ -87,16 +96,26 @@ class _SliverGridComicsState extends State<SliverGridComics> {
       }
     }
     generateHeroID();
-    HistoryManager().addListener(update);
-    LocalFavoritesManager().addListener(update);
+    addComicWidgetStateListener(update);
+    if (widget.useFavoriteDisplaySettings) {
+      appdata.settings.addListener(_onSettingsChanged);
+    }
     super.initState();
   }
 
   @override
   void dispose() {
-    HistoryManager().removeListener(update);
-    LocalFavoritesManager().removeListener(update);
+    removeComicWidgetStateListener(update);
+    if (widget.useFavoriteDisplaySettings) {
+      appdata.settings.removeListener(_onSettingsChanged);
+    }
     super.dispose();
+  }
+
+  void _onSettingsChanged() {
+    if (mounted) {
+      setState(() {});
+    }
   }
 
   void update() {
@@ -112,6 +131,12 @@ class _SliverGridComicsState extends State<SliverGridComics> {
 
   @override
   Widget build(BuildContext context) {
+    final favoriteDisplayState = comicFavoriteDisplayState();
+    final favoriteDisplayMode = widget.useFavoriteDisplaySettings
+        ? (favoriteDisplayState.isGallery
+              ? ComicTileDisplayMode.gallery
+              : ComicTileDisplayMode.detailed)
+        : null;
     return _SliverGridComics(
       comics: comics,
       heroIDs: heroIDs,
@@ -122,6 +147,10 @@ class _SliverGridComicsState extends State<SliverGridComics> {
       onTap: widget.onTap,
       onLongPressed: widget.onLongPressed,
       onBlocked: update,
+      favoriteDisplayMode: favoriteDisplayMode,
+      galleryColumns: favoriteDisplayMode == ComicTileDisplayMode.gallery
+          ? favoriteDisplayState.galleryColumns
+          : null,
     );
   }
 }
@@ -137,6 +166,8 @@ class _SliverGridComics extends StatelessWidget {
     this.onLongPressed,
     this.onBlocked,
     this.selection,
+    this.favoriteDisplayMode,
+    this.galleryColumns,
   });
 
   final List<Comic> comics;
@@ -156,6 +187,10 @@ class _SliverGridComics extends StatelessWidget {
   final void Function(Comic, int heroID)? onLongPressed;
 
   final VoidCallback? onBlocked;
+
+  final ComicTileDisplayMode? favoriteDisplayMode;
+
+  final int? galleryColumns;
 
   @override
   Widget build(BuildContext context) {
@@ -180,6 +215,7 @@ class _SliverGridComics extends StatelessWidget {
               : null,
           onBlocked: onBlocked,
           heroID: heroIDs[index],
+          displayMode: favoriteDisplayMode,
         );
         if (selection == null) {
           return comic;
@@ -199,7 +235,10 @@ class _SliverGridComics extends StatelessWidget {
           child: comic,
         );
       }, childCount: comics.length),
-      gridDelegate: SliverGridDelegateWithComics(),
+      gridDelegate: SliverGridDelegateWithComics(
+        galleryColumns: galleryColumns,
+        forceDetailed: favoriteDisplayMode == ComicTileDisplayMode.detailed,
+      ),
     );
   }
 }
@@ -242,7 +281,9 @@ class ComicList extends StatefulWidget {
     this.menuBuilder,
     this.controller,
     this.refreshHandlerCallback,
+    this.reloadHandlerCallback,
     this.enablePageStorage = false,
+    this.useFavoriteDisplaySettings = false,
   });
 
   final Future<Res<List<Comic>>> Function(int page)? loadPage;
@@ -261,7 +302,11 @@ class ComicList extends StatefulWidget {
 
   final void Function(VoidCallback c)? refreshHandlerCallback;
 
+  final void Function(VoidCallback c)? reloadHandlerCallback;
+
   final bool enablePageStorage;
+
+  final bool useFavoriteDisplaySettings;
 
   @override
   State<ComicList> createState() => ComicListState();
@@ -277,6 +322,8 @@ class ComicListState extends State<ComicList> {
   String? _error;
 
   final Map<int, bool> _loading = {};
+
+  bool _isReloading = false;
 
   String? _nextUrl;
 
@@ -338,11 +385,47 @@ class ComicListState extends State<ComicList> {
     setState(() {});
   }
 
+  Future<void> reload() async {
+    if (_isReloading) return;
+    if (widget.loadPage == null || _data.isEmpty) {
+      refresh();
+      return;
+    }
+    _isReloading = true;
+    final pages = _data.keys.toList()..sort();
+    try {
+      final results = await Future.wait([
+        for (final page in pages) widget.loadPage!(page),
+      ]);
+      if (!mounted) return;
+      setState(() {
+        for (var index = 0; index < pages.length; index++) {
+          final result = results[index];
+          if (!result.success) continue;
+          _data[pages[index]] = List<Comic>.from(result.data);
+          if (result.subData is int) {
+            _maxPage = result.subData as int;
+          }
+        }
+        final maxPage = _maxPage;
+        if (maxPage != null) {
+          _data.removeWhere((page, _) => page > maxPage);
+        }
+      });
+      storeState();
+    } finally {
+      _isReloading = false;
+    }
+  }
+
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
     restoreState(PageStorage.of(context).readState(context));
     widget.refreshHandlerCallback?.call(refresh);
+    widget.reloadHandlerCallback?.call(() {
+      unawaited(reload());
+    });
   }
 
   void remove(Comic c) {
@@ -566,6 +649,7 @@ class ComicListState extends State<ComicList> {
         SliverGridComics(
           comics: _data[_page] ?? const [],
           menuBuilder: widget.menuBuilder,
+          useFavoriteDisplaySettings: widget.useFavoriteDisplaySettings,
         ),
         if (_data[_page]!.length > 6 && _maxPage != 1)
           _buildSliverPageSelector(),
@@ -611,6 +695,7 @@ class ComicListState extends State<ComicList> {
         SliverGridComics(
           comics: _data.values.expand((element) => element).toList(),
           menuBuilder: widget.menuBuilder,
+          useFavoriteDisplaySettings: widget.useFavoriteDisplaySettings,
           onLastItemBuild: () {
             if (_error == null &&
                 (_maxPage == null || _data.length < _maxPage!)) {
